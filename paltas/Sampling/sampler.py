@@ -117,3 +117,16 @@ class Sampler():
 
 		# Populate the cross objects
 		return full_param_dict
+	
+	def get_sample_dist(self):
+		global CROSSOBJECTWARNING
+		full_param_dict = {}
+
+		# For each possible component of our lensing add the parameters
+		for component in lensing_components:
+			if component in self.config_dict:
+				draw_dict = self.config_dict[component]['parameters']
+				full_param_dict[component] = draw_dict
+
+
+		return full_param_dict

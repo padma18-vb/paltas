@@ -168,6 +168,14 @@ class ConfigHandler():
 		else:
 			self.add_noise = True
 
+	def get_sample_dict(self):
+		"""Returns the distribution we're sampling from for each of the parameters.
+		
+		Returns:
+			(dict): key: parameter; value: sample distribution entered in config file
+		"""
+		return self.sampler.get_sample_dist()
+	
 	def draw_new_sample(self):
 		"""Draws a new sample from the config sampler.
 		"""
