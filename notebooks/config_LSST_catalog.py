@@ -10,6 +10,9 @@ from paltas.MainDeflector.simple_deflectors import PEMDShear
 from paltas.Sources.sersic import SingleSersicSource
 from paltas.PointSource.single_point_source import SinglePointSource
 from lenstronomy.Util import kernel_util
+from lenstronomy.Util.param_util import phi_q2_ellipticity
+import pandas as pd
+
 
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':1}
@@ -21,69 +24,82 @@ numpix = 33
 # Define arguments that will be used multiple times
 output_ab_zeropoint = 27.79
 n_years = 5
+catalog = True
 
-# load in focus diverse PSF maps
+# load in data
 psf_kernels = np.load('data/norm_resize_psf.npy', mmap_mode='r+')
+deflectors = pd.read_csv('data/final_lens_2.csv', index_col=0)
+sources = pd.read_csv('data/final_AGN_2.csv', index_col=0)
 
 def draw_psf_kernel():
 	random_psf_index = np.random.randint(psf_kernels.shape[0])
 	chosen_psf = psf_kernels[random_psf_index, :, :]
+	# print(random_psf_index)
 	return chosen_psf
 
+index = 3
+
+def phi():
+	return deflectors.loc[index,'PHIE']* np.pi / 180
+def q_mass():
+	return 1/ (1 - deflectors.loc[index,'ELLIP'])
+def q_light():
+	return (1 - deflectors.loc[index,'ellipticity_true'])/(1 + deflectors.loc[index,'ellipticity_true'])
+def q_source_light():	
+	return 1 - sources.loc[index,'ellipticity_true']
 
 config_dict = {
 	'main_deflector':{
 		'class': PEMDShear,
 		'parameters':{
-			'z_lens': None,
+			'z_lens': 'ZLENS',
 			'gamma': truncnorm(-1.5,1.5,loc=2,scale=0.3).rvs,
-			'theta_E': truncnorm(-0.5, np.inf, loc=0.8,scale=1).rvs,
-			'e1': norm(loc=0, scale=0.1).rvs,
-			'e2': norm(loc=0, scale=0.1).rvs,
-			'center_x': None,
-			'center_y': None,
-			'gamma1': norm(loc=0, scale=0.1).rvs,
-			'gamma2': norm(loc=0, scale=0.1).rvs,
+			'theta_E': 'EINSTEIN',
+			'e1': None, # this is a cross parameter
+			'e2': None, # this is a cross parameter
+			'center_x': 0, # fixed in OM10
+			'center_y': 0, # fixed in OM10
+			'gamma1': None, # this is a cross parameter
+			'gamma2': None, # this is a cross parameter
 			'ra_0':0.0, 'dec_0':0.0
 		}
 	},
 	'lens_light':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':None,
-			'mag_app':norm(loc=20, scale=2.5).rvs,
+			'z_source':'ZLENS',
+			'mag_app':'APMAG_I',
 			'output_ab_zeropoint':output_ab_zeropoint,
-			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
-			'n_sersic':norm(loc=4, scale=0.005).rvs,
-			'e1':norm(loc=0, scale=0.1).rvs,
-			'e2':norm(loc=0, scale=0.1).rvs,
-			'center_x':None,
-			'center_y':None
+			'R_sersic': 'size_true',
+			'n_sersic': 'sersic_bulge',
+			'e1': None, # this is a cross parameter
+			'e2': None, # this is a cross parameter
+			'center_x':0,
+			'center_y':0
 			}
 	},
 	'source':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':None,
-			'mag_app':norm(loc=24, scale = 2).rvs,
+			'z_source': 'redshift',
+			'mag_app': 'mag_true_i',
 			'output_ab_zeropoint':output_ab_zeropoint,
-			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
-			'n_sersic':norm(loc=4, scale=0.001).rvs,
-			'e1':norm(loc=0, scale=0.1).rvs,
-			'e2':norm(loc=0, scale=0.1).rvs,
-			'center_x':None,
-			'center_y':None
+			'R_sersic': 'size_true',
+			'n_sersic': 'sersic_bulge',
+			'e1':None, # this is a cross parameter
+			'e2':None, # this is a cross parameter
+			'center_x': 'XSRC',
+			'center_y': 'YSRC'
 		}
 	},
     'point_source':{
 		'class': SinglePointSource,
 		'parameters':{
-            'z_point_source':None,
-			'x_point_source':None,
-			'y_point_source':None,
-            # range: 19 to 25
-            'mag_app':norm(loc=22, scale=2).rvs,
-			#'magnitude':truncnorm(-2.0,2.0,loc=-27.42,scale=1.16).rvs,
+			'z_source': 'redshift',
+            'z_point_source':'ZSRC',
+			'x_point_source':'XSRC',
+			'y_point_source':'YSRC',
+			'mag_abs': 'ABMAGI_IN4',
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'compute_time_delays': False
 		}
@@ -112,18 +128,16 @@ config_dict = {
 	},
     'cross_object':{
 		'parameters':{
-            ('main_deflector:center_x,lens_light:center_x'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.00001).rvs,scatter=0.005),
-            ('main_deflector:center_y,lens_light:center_y'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.00001).rvs,scatter=0.005),
-            ('source:center_x,source:center_y,point_source:x_point_source,'+
-                'point_source:y_point_source'):dist.DuplicateXY(
-                x_dist=norm(loc=0.0,scale=0.5).rvs,
-                y_dist=norm(loc=0.0,scale=0.5).rvs),
-			('main_deflector:z_lens,lens_light:z_source,source:z_source,'+ 
-				'point_source:z_point_source'): dist.RedshiftsPointSource(
-				z_lens_min=0,z_lens_mean=0.5,z_lens_std=0.6,
-				z_source_min=0,z_source_mean=2,z_source_std=0.6)
+			('main_deflector:e1,main_deflector:e2'):[dist.EllipticitiesTranslation, q_mass, phi],
+			('main_deflector:gamma1,main_deflector:gamma2'):[dist.ExternalShearTranslation, 'GAMMA','PHIG'],
+			('lens_light:e1,lens_light:e2'): [dist.EllipticitiesTranslation, q_light, phi],
+			('source:e1,source:e2'): [dist.EllipticitiesTranslation, q_source_light, 'phi']
+		}
+	},
+	'catalog_path': {
+		'parameters': {
+			'deflectors': 'data/final_lens_2.csv',
+			'sources': 'data/final_AGN_2.csv'
 		}
 	}
 }
