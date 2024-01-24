@@ -108,7 +108,7 @@ class SamplerTests(unittest.TestCase):
 			}
 		}
 
-		self.s = Sampler(self.config_dict)
+		self.s = Sampler(configuration_dictionary=self.config_dict)
 
 	def test_draw_from_dict(self):
 		# Test that the draw dict returns the samples we desire.

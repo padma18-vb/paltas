@@ -89,7 +89,7 @@ def main():
 		# Save the image and the metadata
 		filename = os.path.join(args.save_folder, 'image_%07d' % successes)
 		if not args.h5:
-			np.save(filename, image)
+			np.save(filename, image, allow_pickle=True)
 		if args.save_png_too:
 			plt.imsave(filename + '.png', image)
 

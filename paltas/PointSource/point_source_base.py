@@ -29,6 +29,7 @@ class PointSourceBase():
 		self.point_source_parameters = copy.deepcopy(point_source_parameters)
 
 		# Check that all the required parameters are present
+		# print(self.point_source_parameters, self.__class__.required_parameters)
 		self.check_parameterization(self.__class__.required_parameters)
 
 	def check_parameterization(self, required_params):

@@ -2,7 +2,7 @@ import os
 
 batch_size = 256
 # The number of epochs to train for
-n_epochs = 200
+n_epochs = 60
 # The size of the images in the training set
 img_size = (33, 33, 1)
 # A random seed to us
@@ -19,14 +19,14 @@ flip_pairs = None
 weight_terms = None
 # The path to the folder containing the npy images
 # for training
-npy_folders_train = ['generated_images/config_LSST/']
+npy_folders_train = ['generated_images/train3/config_LSST/']
 # The path to the tf_record for the training images
 tfr_train_paths = [
 	os.path.join(path,'data.tfrecord') for path in npy_folders_train]
 metadata_paths_train = [
 	os.path.join(path,'metadata.csv') for path in npy_folders_train]
 # The path to the folder containing the npy images for validation
-npy_folder_val = ('generated_images/valid/config_LSST/')
+npy_folder_val = ('generated_images/valid3/config_LSST/')
 # The path to the tf_record for the validation images
 tfr_val_path = os.path.join(npy_folder_val,'data.tfrecord')
 # The path to the training metadata
@@ -46,13 +46,15 @@ model_type = 'xresnet34'
 # A string specifying which optimizer to use
 optimizer = 'Adam'
 # Where to save the model weights
-model_weights = ('train_results/model_weights/_{epoch:02d}-{val_loss:.2f}.h5')
-model_weights_init = None
+model_weights = ('train3_results/model_weights2/_{epoch:02d}-{val_loss:.2f}.h5')
+model_weights_init = ('train3_results/model_weights/_60--1.51_last.h5')
 # The learning rate for the model
-learning_rate = 5e-3
+learning_rate = 5e-3*(0.98**(60*1e5/(256*390)))
 # Whether or not to use random rotation of the input images
 random_rotation = True
 # Only train the head
 train_only_head = False
 # number of steps after which you change the decay rate
-steps_per_decay = 100000//256
+steps_per_decay = 390
+# csv path
+csv_path = '/Users/padmavenkatraman/Documents/StrongLensing/paltas/notebooks/train3_results/losses2.csv'

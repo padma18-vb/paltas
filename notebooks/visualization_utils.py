@@ -363,7 +363,7 @@ def matrix_plot(image_folder,df,indices,dim,save_name,PlotCenter=True):
 ###############################
 # Matrix plot from numpy files
 ###############################
-def matrix_plot_from_npy(file_list,names,dim,save_name,annotate=False):
+def matrix_plot_from_npy(file_list,names,dim,save_name,asinh_a=0.1, max_cut = None, annotate=False):
     """
     Args: 
         file_list ([string]): paths of .npy files
@@ -401,7 +401,7 @@ def matrix_plot_from_npy(file_list,names,dim,save_name,annotate=False):
                 #print(os.getcwd())
                 cropped_data = np.load(file_list[file_counter])
                 # normalize data using log and min cutoff 
-            norm = simple_norm(cropped_data,stretch='linear',min_cut=1e-6)
+            norm = simple_norm(cropped_data,stretch='asinh',min_cut=1e-6, asinh_a=asinh_a, max_cut=max_cut)
         
             # create individual image using plt library
             if names[file_counter] is not None:

@@ -62,7 +62,7 @@ class ConfigHandler():
 		config_path (str): A path to the config file to parse.
 	"""
 
-	def __init__(self,config_path,):
+	def __init__(self,config_path,index=None):
 		# Get the dictionary from the provided .py file
 		config_dir, config_file = os.path.split(os.path.abspath(config_path))
 		sys.path.insert(0, config_dir)
@@ -81,9 +81,10 @@ class ConfigHandler():
 		if isinstance(self.base_seed, (int, float)):
 			self.base_seed = (self.base_seed,)
 		self.reseed_counter = 0
-
+		self.catalog = self.config_module.catalog
+		self.index = index
 		# Set up our sampler and draw a sample for initialization
-		self.sampler = Sampler(self.config_dict)
+		self.sampler = Sampler(configuration_dictionary=self.config_dict)
 		self.sample = None
 		self.draw_new_sample()
 		sample = self.get_current_sample()
@@ -179,7 +180,10 @@ class ConfigHandler():
 	def draw_new_sample(self):
 		"""Draws a new sample from the config sampler.
 		"""
-		self.sample = self.sampler.sample()
+		if self.catalog:
+			self.sample = self.sampler.catalog_sample(index=self.index)
+		else:
+			self.sample = self.sampler.sample()
 
 	def get_current_sample(self):
 		"""Returns the current sample from the config sampler.
@@ -282,7 +286,7 @@ class ConfigHandler():
 
 		# For catalog objects we also want to save the catalog index
 		# and the (possibly randomized) additional rotation angle. We will
-		# therefore push these back into the sample object.
+		# therefore push these into the sample object.
 		if isinstance(self.source_class,GalaxyCatalog):
 			catalog_i, phi = self.source_class.fill_catalog_i_phi_defaults()
 			source_model_list, source_kwargs_list, source_redshift_list = (
@@ -467,6 +471,7 @@ class ConfigHandler():
 			raise FailedCriteriaError()
 
 		if self.doubles_quads_only and num_images != 2 and num_images != 4:
+			print('true!!')
 			raise FailedCriteriaError()
 
 		# throw error if not quad & requested quads only
@@ -589,8 +594,20 @@ class ConfigHandler():
 		lens_equation_params = None
 		if 'lens_equation_solver_parameters' in sample.keys():
 			lens_equation_params = sample['lens_equation_solver_parameters']
+		# print('kwargs_model: ', kwargs_model)
+		# print('kwargs_params: ', kwargs_params)
+		# print('inputs to PointSource:')
+		# print("point_source_type_list,\nlens_model=None,\nfixed_magnification_list=None\n",
+		# "additional_images_list=None,\nflux_from_point_source_list=None,\nmagnification_limit=None\n",
+		# "save_cache=False,\nkwargs_lens_eqn_solver=None,\nindex_lens_model_list=None,\npoint_source_frame_list=None")
+		# print('--------------')
+		# print("point_source_type_list: kwargs_model['point_source_model_list']: ", kwargs_model['point_source_model_list'])
+		# print("lens_model: ", lens_model)
+		# print("save_cache: ", True)
+		# print("kwargs_lens_eqn_solver: ", lens_equation_params)
+		# print("fixed_magnification_list: ", [True])
 		point_source_model = PointSource(
-			kwargs_model['point_source_model_list'],lensModel=lens_model,
+			kwargs_model['point_source_model_list'],lens_model=lens_model,
 			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params,
             fixed_magnification_list=[True])
 

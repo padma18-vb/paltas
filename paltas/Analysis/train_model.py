@@ -45,7 +45,6 @@ def main():
 	sys.path.insert(0, config_dir)
 	config_name, _ = os.path.splitext(config_file)
 	config_module = import_module(config_name)
-
 	# Grab the arguments passed in by the user
 	# The size of each training batch
 	batch_size = config_module.batch_size

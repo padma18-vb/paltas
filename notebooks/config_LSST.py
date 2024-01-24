@@ -19,15 +19,19 @@ kwargs_numerics = {'supersampling_factor':1}
 numpix = 33
 
 # Define arguments that will be used multiple times
-output_ab_zeropoint = 27.79
-n_years = 5
+output_ab_zeropoint = 27
+n_years = 1
 
 # load in focus diverse PSF maps
+catalog=False
+index=None
+double_quads_only=True
 psf_kernels = np.load('data/norm_resize_psf.npy', mmap_mode='r+')
 
 def draw_psf_kernel():
 	random_psf_index = np.random.randint(psf_kernels.shape[0])
 	chosen_psf = psf_kernels[random_psf_index, :, :]
+	chosen_psf[chosen_psf<0]=0
 	return chosen_psf
 
 
@@ -51,7 +55,7 @@ config_dict = {
 		'class': SingleSersicSource,
 		'parameters':{
 			'z_source':None,
-			'mag_app':norm(loc=20, scale=2.5).rvs,
+			'mag_app':norm(loc=20.5, scale=2).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
 			'n_sersic':norm(loc=4, scale=0.005).rvs,
@@ -113,13 +117,13 @@ config_dict = {
     'cross_object':{
 		'parameters':{
             ('main_deflector:center_x,lens_light:center_x'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.00001).rvs,scatter=0.005),
+                dist=norm(loc=0,scale=0.05).rvs,scatter=0.001),
             ('main_deflector:center_y,lens_light:center_y'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.00001).rvs,scatter=0.005),
+                dist=norm(loc=0,scale=0.05).rvs,scatter=0.001),
             ('source:center_x,source:center_y,point_source:x_point_source,'+
                 'point_source:y_point_source'):dist.DuplicateXY(
-                x_dist=norm(loc=0.0,scale=0.5).rvs,
-                y_dist=norm(loc=0.0,scale=0.5).rvs),
+                x_dist=norm(loc=0.0,scale=0.4).rvs,
+                y_dist=norm(loc=0.0,scale=0.4).rvs),
 			('main_deflector:z_lens,lens_light:z_source,source:z_source,'+ 
 				'point_source:z_point_source'): dist.RedshiftsPointSource(
 				z_lens_min=0,z_lens_mean=0.5,z_lens_std=0.6,

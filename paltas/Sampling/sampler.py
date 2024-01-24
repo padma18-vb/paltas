@@ -7,6 +7,8 @@ This module contains the class used to sample parameters for our train and test
 set from the input distributions.
 """
 import warnings
+import numpy as np
+import pandas as pd
 # Define the components we need the sampler to consider.
 lensing_components = ['subhalo','los','main_deflector','source','lens_light',
 	'point_source','lens_equation_solver','cosmology','psf','detector','drizzle',
@@ -114,7 +116,7 @@ class Sampler():
 					CROSSOBJECTWARNING = False
 				full_param_dict[component+'_parameters'][param] = (
 					cross_dict[cross_param])
-
+				
 		# Populate the cross objects
 		return full_param_dict
 	
@@ -127,6 +129,72 @@ class Sampler():
 			if component in self.config_dict:
 				draw_dict = self.config_dict[component]['parameters']
 				full_param_dict[component] = draw_dict
-
+		
+		# Populate parameters from distributions that span accross objects.
+		if 'cross_object' in self.config_dict:
+			draw_dict = self.config_dict['cross_object']['parameters']
+			# Go through the params and update the full dict
+			for cross_param in self.config_dict['cross_object']['parameters']:
+				component, param = cross_param.split(':')
+				full_param_dict[component][param] = draw_dict['cross_object']['parameters'][cross_param]
 
 		return full_param_dict
+	
+
+	def catalog_sample(self, index):
+		self.selected_indices = []
+		path_to_deflectors = self.config_dict['main_deflector']['file']
+		self.deflectors_catalog = pd.read_csv(path_to_deflectors, index_col=0)
+		# Pull the global warning variable and initialize our dict
+		full_param_dict = {}
+		if index is None:
+			index = np.random.choice(self.deflectors_catalog.index)
+			if index in self.selected_indices:
+				while index in self.selected_indices:
+					index = np.random.choice(self.deflectors_catalog.index)
+		else:
+			index = index
+		self.selected_indices.append(index)
+		# print('index: ', index)
+
+		# For each possible component of our lensing add the parameters
+		for component in lensing_components:
+			if component in self.config_dict:
+				param_dict = self.draw_from_catalog(component, index)
+				full_param_dict[component+'_parameters'] = param_dict
+
+		return full_param_dict
+	
+	def draw_from_catalog(self, component, index):
+		param_dict = {}
+		
+		draw_from_file = self.config_dict[component]['file']
+		draw_dict= self.config_dict[component]['parameters']
+		if draw_from_file is not None:
+		
+			comp_table = pd.read_csv(draw_from_file, index_col=0)
+			draw_from = comp_table.loc[index, :]
+		else:
+			draw_from = None
+
+		# Iterate through the keys in the draw_dict and populate the values of
+		# param_dict correctly.
+		for key in sorted(draw_dict):
+			# If the key implies that multiple parameters will be drawn from
+			# the distribution, draw the value and then iterate through the
+			# parameters.
+			
+			if callable(draw_dict[key]):
+				param_dict[key] = draw_dict[key]()
+			elif not type(draw_dict[key])==str:
+				param_dict[key] = draw_dict[key]
+			else:
+				if draw_from is not None:
+					# look for the value in the catalog
+					param_dict[key] = draw_from.loc[draw_dict[key]]
+				else:
+					# if it doesn't exist, then the key must be PSF / cosmology / detector
+					param_dict[key] = draw_dict[key]
+
+		return param_dict
+
