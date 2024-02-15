@@ -122,6 +122,16 @@ class ConfigHandler():
 			self.ps_magnification_cut = self.config_module.ps_magnification_cut
 		else:
 			self.ps_magnification_cut = None
+		
+		if hasattr(self.config_module, 'subtract_lens'):
+			self.subtract_lens = self.config_module.subtract_lens
+		else:
+			self.subtract_lens = False
+
+		if hasattr(self.config_module, 'subtract_source'):
+			self.subtract_source = self.config_module.subtract_source
+		else:
+			self.subtract_source = False
 
 
 		# Set up the paltas objects we'll use
@@ -591,7 +601,7 @@ class ConfigHandler():
 
 		# Point source may need lens eqn solver kwargs
         # Need to fix how fixed_magnification_list is handled
-		lens_equation_params = None
+		lens_equation_params = {'search_window':kwargs_params['kwargs_lens'][0]['theta_E']*6,'min_distance': kwargs_params['kwargs_lens'][0]['theta_E']*6/200}
 		if 'lens_equation_solver_parameters' in sample.keys():
 			lens_equation_params = sample['lens_equation_solver_parameters']
 		# print('kwargs_model: ', kwargs_model)
@@ -620,7 +630,14 @@ class ConfigHandler():
 		image = image_model.image(kwargs_params['kwargs_lens'],
 			kwargs_params['kwargs_source'],
 			kwargs_params['kwargs_lens_light'],
-			kwargs_params['kwargs_ps'])
+			kwargs_params['kwargs_ps'],
+			lens_light_add = not self.subtract_lens)
+		if self.subtract_lens:
+			image_with_lens = image_model.image(kwargs_params['kwargs_lens'],
+				kwargs_params['kwargs_source'],
+				kwargs_params['kwargs_lens_light'],
+				kwargs_params['kwargs_ps'],
+				lens_light_add = self.subtract_lens)
 
 		# Check for the magnification cut and apply it.
         # TODO: these assumptions break down w/ a point source in the model
@@ -638,8 +655,12 @@ class ConfigHandler():
 				raise FailedCriteriaError()
 
 		# If noise is specified, add it.
-		if add_noise:
+		
+		if add_noise and not self.subtract_lens:
 			image += single_band.noise_for_model(image)
+		
+		if add_noise and self.subtract_lens:
+			image += single_band.noise_for_model(image_with_lens)
 
 		# Extract the metadata from the sample
 		metadata = self.get_metadata()

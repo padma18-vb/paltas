@@ -99,9 +99,11 @@ def main():
 	# The detector kwargs to use for on-the-fly noise generation
 	kwargs_detector = config_module.kwargs_detector
 	# Whether or not to normalize the images by the standard deviation
-	norm_images = config_module.norm_images
+	norm_images = getattr(config_module,'norm_images',False)
 	# Whether or not to log norm images
 	log_norm_images = getattr(config_module,'log_norm_images',False)
+	# whether or not to standardize images
+	std_norm_images = getattr(config_module,'std_norm_images',False)
 	# A string with which loss function to use.
 	loss_function = config_module.loss_function
 	# A string specifying which model to use
@@ -162,6 +164,8 @@ def main():
 		tf_dataset_t = dataset_generation.generate_rotations_dataset(
 			tfr_train_paths,all_params,batch_size,n_epochs,
 			norm_images=norm_images,log_norm_images=log_norm_images,
+			std_norm_images=std_norm_images,
+			
 			input_norm_path=input_norm_path,
 			kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
@@ -170,6 +174,7 @@ def main():
 		tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
 			all_params,batch_size,n_epochs,norm_images=norm_images,
 			log_norm_images=log_norm_images,
+			std_norm_images=std_norm_images,
 			input_norm_path=input_norm_path,kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	# We shouldn't be adding random noise to validation images. They should
@@ -180,6 +185,7 @@ def main():
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
 		all_params,min(batch_size,n_val_npy),1,
 		norm_images=norm_images,log_norm_images=log_norm_images,
+		std_norm_images=std_norm_images,
 		input_norm_path=input_norm_path,
 		kwargs_detector=None,log_learning_params=log_learning_params)
 

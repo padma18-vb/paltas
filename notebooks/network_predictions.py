@@ -38,10 +38,11 @@ class NetworkPredictions():
         batch_size = 256
         flip_pairs = None
 
-        if norm_type in {'norm','lognorm'}:
+        if norm_type in {'norm','lognorm', 'stdnorm'}:
             self.norm_type = norm_type
             self.norm_images = (norm_type == 'norm')
             self.lognorm_images = (norm_type == 'lognorm')
+            self.stdnorm_images = (norm_type=='stdnorm')
         else:
             raise ValueError('norm_type not supported in NetworkPredictions initialization')
         
@@ -55,7 +56,7 @@ class NetworkPredictions():
                             #'source_parameters_R_sersic']
         else:
             self.learning_params = learning_params
-        print('learning params', self.learning_params)
+        # print('learning params', self.learning_params)
         log_learning_params = []
         num_params = len(self.learning_params+log_learning_params)
         self.loss_type = loss_type
@@ -108,7 +109,7 @@ class NetworkPredictions():
             y_pred, precision_matrix, _ = self.loss_func.convert_output(output)
         else:
             y_pred, log_var_pred = self.loss_func.convert_output(output)
-
+        
         # compute std. dev.
         if self.loss_type == 'full':
             cov_mat = np.linalg.inv(precision_matrix.numpy())
@@ -159,7 +160,7 @@ class NetworkPredictions():
             If samples=True:
                 y_test, y_pred, std_pred, prec_pred, predict_samps
             Else:
-                y_test, y_pred, std_pred, prec_pred
+                y_test, y_pred, std_pred, prec_pred, log_var_pred
         """
 
         npy_folder_test = test_folder
@@ -167,7 +168,7 @@ class NetworkPredictions():
 
         tf_dataset_test = dataset_generation.generate_tf_dataset(tfr_test_path,
             self.learning_params,3,1,norm_images=self.norm_images,
-            log_norm_images=self.lognorm_images,kwargs_detector=None,
+            log_norm_images=self.lognorm_images,std_norm_images=self.stdnorm_images,kwargs_detector=None,
             input_norm_path=self.norm_path,log_learning_params=[],shuffle=shuffle)
 
         #tf_dataset_test = dataset_generation.generate_rotations_dataset(tfr_test_path,
@@ -216,11 +217,12 @@ class NetworkPredictions():
             y_test)
                                             
         prec_pred = np.linalg.inv(cov_pred)
+        log_var_pred = np.log(std_pred**2)
 
         if samples:
             return y_test, y_pred, std_pred, prec_pred, predict_samps
         
-        return y_test, y_pred, std_pred, prec_pred
+        return y_test, y_pred, std_pred, prec_pred, log_var_pred
     
     def return_y_test_output(self,test_folder):
 
@@ -228,7 +230,8 @@ class NetworkPredictions():
         tfr_test_path = os.path.join(npy_folder_test,'data.tfrecord')
         tf_dataset_test = dataset_generation.generate_tf_dataset(tfr_test_path,
             self.learning_params,5000,1,norm_images=self.norm_images,
-            log_norm_images=self.lognorm_images,kwargs_detector=None,
+            log_norm_images=self.lognorm_images,std_norm_images=self.stdnorm_images,
+            kwargs_detector=None,
             input_norm_path=self.norm_path,log_learning_params=[])
 
         # only one thing in tf_dataset_test since batch size = 5,000
@@ -278,7 +281,8 @@ class NetworkPredictions():
 
             tf_dataset_test = dataset_generation.generate_tf_dataset(tfr_test_path,
                 self.learning_params,3,1,norm_images=self.norm_images,
-                log_norm_images=self.lognorm_images,kwargs_detector=None,
+                log_norm_images=self.lognorm_images,std_norm_images=self.stdnorm_images,
+                kwargs_detector=None,
                 input_norm_path=self.norm_path,log_learning_params=[])
 
             # only one thing in tf_dataset_test since individual doppelgangers
@@ -365,6 +369,8 @@ class NetworkPredictions():
                 image = dataset_generation.norm_image(image)
             elif self.lognorm_images:
                 image = dataset_generation.log_norm_image(image)
+            elif self.stdnorm_images:
+                image = dataset_generation.standard_norm_image(image)
 
             # use unrotated output for covariance matrix
             # needs to be shape (1,80,80,1), can be numpy

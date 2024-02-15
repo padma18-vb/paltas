@@ -27,10 +27,12 @@ numpix = 33
 # Define arguments that will be used multiple times
 output_ab_zeropoint = 27
 n_years = 1
+subtract_lens=True
+doubles_quads_only=False
 catalog = True
 
 # load in data
-psf_kernels = np.load(os.path.join(root_path, 'data/norm_resize_psf_no_zero.npy'), mmap_mode='r+')
+psf_kernels = np.load(os.path.join(root_path, 'data/norm_resize_psf.npy'), mmap_mode='r+')
 
 def draw_psf_kernel():
 	random_psf_index = np.random.randint(psf_kernels.shape[0])
@@ -47,7 +49,7 @@ config_dict = {
 		'parameters':{
 			'z_lens': 'ZLENS',
 			#'gamma':2,
-			'gamma': truncnorm(-1.5,1.5,loc=2,scale=0.3).rvs,
+			'gamma': truncnorm(-1.5,1.5,loc=2,scale=0.22).rvs,
 			'theta_E': 'EINSTEIN',
 			'e1': 'e1_mass', # added to catalog
 			'e2': 'e2_mass', # added to catalog

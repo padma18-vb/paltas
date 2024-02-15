@@ -20,12 +20,13 @@ numpix = 33
 
 # Define arguments that will be used multiple times
 output_ab_zeropoint = 27
-n_years = 1
+n_years = 5
 
 # load in focus diverse PSF maps
 catalog=False
 index=None
-double_quads_only=True
+subtract_lens = False
+subtract_source = False
 psf_kernels = np.load('data/norm_resize_psf.npy', mmap_mode='r+')
 
 def draw_psf_kernel():
@@ -40,10 +41,10 @@ config_dict = {
 		'class': PEMDShear,
 		'parameters':{
 			'z_lens': None,
-			'gamma': truncnorm(-1.5,1.5,loc=2,scale=0.3).rvs,
+			'gamma': truncnorm(-1.5,1.5,loc=2,scale=0.22).rvs,
 			'theta_E': truncnorm(-0.5, np.inf, loc=0.8,scale=1).rvs,
-			'e1': norm(loc=0, scale=0.1).rvs,
-			'e2': norm(loc=0, scale=0.1).rvs,
+			'e1':None,
+			'e2':None,
 			'center_x': None,
 			'center_y': None,
 			'gamma1': norm(loc=0, scale=0.1).rvs,
@@ -59,8 +60,8 @@ config_dict = {
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
 			'n_sersic':norm(loc=4, scale=0.005).rvs,
-			'e1':norm(loc=0, scale=0.1).rvs,
-			'e2':norm(loc=0, scale=0.1).rvs,
+			'e1':None,
+			'e2':None,
 			'center_x':None,
 			'center_y':None
 			}
@@ -117,9 +118,13 @@ config_dict = {
     'cross_object':{
 		'parameters':{
             ('main_deflector:center_x,lens_light:center_x'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.05).rvs,scatter=0.001),
+                dist=norm(loc=0,scale=0.06).rvs,scatter=0.001),
             ('main_deflector:center_y,lens_light:center_y'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.05).rvs,scatter=0.001),
+                dist=norm(loc=0,scale=0.06).rvs,scatter=0.001),
+			('main_deflector:e1,lens_light:e1'):dist.DuplicateScatter(
+                dist=norm(loc=0,scale=0.5).rvs,scatter=0.5),
+            ('main_deflector:e2,lens_light:e2'):dist.DuplicateScatter(
+                dist=norm(loc=0,scale=0.5).rvs,scatter=0.5),
             ('source:center_x,source:center_y,point_source:x_point_source,'+
                 'point_source:y_point_source'):dist.DuplicateXY(
                 x_dist=norm(loc=0.0,scale=0.4).rvs,

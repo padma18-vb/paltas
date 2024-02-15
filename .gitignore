@@ -5,10 +5,13 @@ notebooks/config_training_drizzle/**
 notebooks/train_results/**
 notebooks/train2_results/**
 notebooks/train3_results/**
+notebooks/NLNORM/**
+notebooks/nolens_results/**
 
 # DS_STORE
 *.DS_Store
 */.DS_Store
+.DS_Store
 
 # Jupyter
 .ipynb_checkpoints
