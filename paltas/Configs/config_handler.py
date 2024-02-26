@@ -627,17 +627,22 @@ class ConfigHandler():
 			point_source_model,kwargs_numerics=self.kwargs_numerics)
 
 		# Generate our image
+		# self.subtract_lens = True if we want to subtract lens; False if we want to keep lens
 		image = image_model.image(kwargs_params['kwargs_lens'],
 			kwargs_params['kwargs_source'],
 			kwargs_params['kwargs_lens_light'],
 			kwargs_params['kwargs_ps'],
-			lens_light_add = not self.subtract_lens)
-		if self.subtract_lens:
-			image_with_lens = image_model.image(kwargs_params['kwargs_lens'],
+			source_add = True,
+			lens_light_add = not self.subtract_lens,
+        	point_source_add= not self.subtract_source)
+		if self.subtract_lens or self.subtract_source:
+			image_with_all_light = image_model.image(kwargs_params['kwargs_lens'],
 				kwargs_params['kwargs_source'],
 				kwargs_params['kwargs_lens_light'],
 				kwargs_params['kwargs_ps'],
-				lens_light_add = self.subtract_lens)
+				source_add = True,
+				lens_light_add = True,
+				point_source_add = True)
 
 		# Check for the magnification cut and apply it.
         # TODO: these assumptions break down w/ a point source in the model
@@ -656,11 +661,11 @@ class ConfigHandler():
 
 		# If noise is specified, add it.
 		
-		if add_noise and not self.subtract_lens:
+		# image contains all light
+		if add_noise and not (self.subtract_lens or self.subtract_source):
 			image += single_band.noise_for_model(image)
-		
-		if add_noise and self.subtract_lens:
-			image += single_band.noise_for_model(image_with_lens)
+		elif add_noise and (self.subtract_lens or self.subtract_source):
+			image += single_band.noise_for_model(image_with_all_light)
 
 		# Extract the metadata from the sample
 		metadata = self.get_metadata()

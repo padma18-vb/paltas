@@ -123,7 +123,7 @@ def main():
 	# CSV Path
 	csv_path = getattr(config_module,'csv_path',None)
 	# Steps per LR Decay
-	steps_per_decay = config_module.steps_per_decay
+	steps_per_decay = getattr(config_module, 'steps_per_decay', steps_per_epoch)
 	
 	params_as_inputs = getattr(config_module,'params_as_inputs',[])
 	all_params = params_as_inputs + learning_params

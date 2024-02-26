@@ -325,6 +325,7 @@ class ProbabilityClassAnalytical:
 			prec_pred = prec_pred_array[pi]
 			integral += gaussian_product_analytical(mu_pred,prec_pred,
 				mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		# print(integral)
 		# Treat nan as probability 0.
 		if np.isnan(integral):
 			integral = -np.inf
