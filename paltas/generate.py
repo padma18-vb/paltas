@@ -66,7 +66,7 @@ def main():
 	# Gather metadata in a list, will be written to dataframe later
 	metadata_list = []
 	metadata_path = os.path.join(args.save_folder,'metadata.csv')
-
+	print(args.config_dict)
 	# Initialize our config handler
 	config_handler = ConfigHandler(args.config_dict)
 

@@ -470,7 +470,7 @@ def matrix_plot_from_npy(file_list,names,dim,save_name,stretch='log',asinh_a=0.1
     plt.imshow(final_image)
     plt.axis('off')
     plt.savefig(save_name,bbox_inches='tight')
-    plt.show()
+    return plt
 
 	
 

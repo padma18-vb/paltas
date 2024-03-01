@@ -102,6 +102,11 @@ class ConfigHandler():
 		else:
 			self.doubles_quads_only = False
 
+		if hasattr(self.config_module, 'no_singles'):
+			self.no_singles = self.config_module.singles
+		else:
+			self.no_singles = False
+
 		# handle quads_only
 		if hasattr(self.config_module, 'quads_only'):
 			self.quads_only = self.config_module.quads_only
@@ -133,6 +138,10 @@ class ConfigHandler():
 		else:
 			self.subtract_source = False
 
+		if hasattr(self.config_module, 'compute_PSF_FWHM'):
+			self.compute_PSF_FWHM = self.config_module.compute_PSF_FWHM
+		else:
+			self.compute_PSF_FWHM = False
 
 		# Set up the paltas objects we'll use
 		self.los_class = None
@@ -359,6 +368,9 @@ class ConfigHandler():
 		# Get the samples and the metadata.
 		sample = self.get_current_sample()
 		metadata = {}
+		if self.catalog:
+			metadata['obj_index'] = sample['obj_index']
+			sample.pop('obj_index', None)
 
 		for component in sample:
 			for key in sample[component]:
@@ -410,7 +422,6 @@ class ConfigHandler():
 				r_core=kwargs_params['kwargs_lens'][0]['r_core'], 
 				gamma=kwargs_params['kwargs_lens'][0]['gamma'])
 			metadata['main_deflector_parameters_M_encl_15e-1arcsec'] = mass_enclosed
-
 
 		return metadata
 
@@ -476,6 +487,8 @@ class ConfigHandler():
 	    	- kwargs_params['kwargs_lens'][0]['center_y'])
 		metadata[pfix+'lens_ps_offset'] = np.sqrt(x_diff**2 + y_diff**2)
 		
+		if self.no_singles and num_images == 1:
+			raise FailedCriteriaError()
 		# throw error if num images > 5
 		if num_images > 5:
 			raise FailedCriteriaError()
@@ -580,7 +593,8 @@ class ConfigHandler():
 			psf_model = PSF(**kwargs_psf)
 		else:
 			psf_model = PSF(psf_type='NONE')
-
+		
+		
 		# Build the data and noise models we'll use.
 		data_api = DataAPI(numpix=self.numpix,
 			kwargs_pixel_grid=kwargs_pixel_grid,**kwargs_detector)
@@ -669,7 +683,7 @@ class ConfigHandler():
 
 		# Extract the metadata from the sample
 		metadata = self.get_metadata()
-
+		metadata['psf_fwhm'] = psf_model.fwhm
 		# If a point source was specified, calculate the time delays
 		# and image positions.
 		if self.point_source_class is not None:

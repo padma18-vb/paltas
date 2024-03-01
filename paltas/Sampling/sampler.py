@@ -35,6 +35,8 @@ class Sampler():
 	def __init__(self,configuration_dictionary):
 		self.config_dict = configuration_dictionary
 		self.selected_indices = []
+		path_to_deflectors = self.config_dict['main_deflector']['file']
+		self.deflectors_catalog = pd.read_csv(path_to_deflectors, index_col=0)
 
 	@staticmethod
 	def draw_from_dict(draw_dict):
@@ -143,8 +145,7 @@ class Sampler():
 	
 
 	def catalog_sample(self, index):
-		path_to_deflectors = self.config_dict['main_deflector']['file']
-		self.deflectors_catalog = pd.read_csv(path_to_deflectors, index_col=0)
+
 		# Pull the global warning variable and initialize our dict
 		full_param_dict = {}
 		if index is None:
@@ -152,8 +153,6 @@ class Sampler():
 			if index in self.selected_indices:
 				while index in self.selected_indices:
 					index = np.random.choice(self.deflectors_catalog.index)
-		else:
-			index = index
 		self.selected_indices.append(index)
 		# print('index: ', index)
 
@@ -163,6 +162,7 @@ class Sampler():
 				param_dict = self.draw_from_catalog(component, index)
 				full_param_dict[component+'_parameters'] = param_dict
 
+		full_param_dict['obj_index'] = index
 		return full_param_dict
 	
 	def draw_from_catalog(self, component, index):

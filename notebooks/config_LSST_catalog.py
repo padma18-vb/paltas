@@ -26,8 +26,9 @@ numpix = 33
 
 # Define arguments that will be used multiple times
 output_ab_zeropoint = 27
-n_years = 1
+n_years = 5
 subtract_lens=True
+subtract_source=True
 doubles_quads_only=False
 catalog = True
 
@@ -49,7 +50,7 @@ config_dict = {
 		'parameters':{
 			'z_lens': 'ZLENS',
 			#'gamma':2,
-			'gamma': truncnorm(-1.5,1.5,loc=2,scale=0.22).rvs,
+			'gamma': 'gamma_lens',
 			'theta_E': 'EINSTEIN',
 			'e1': 'e1_mass', # added to catalog
 			'e2': 'e2_mass', # added to catalog
@@ -68,7 +69,7 @@ config_dict = {
 			'mag_app':'APMAG_I', # LENS APPARENT MAG
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic': 'size_true',
-			'n_sersic': 'sersic_bulge',
+			'n_sersic': 'n_sersic',
 			'e1': 'e1_light', # added to catalog
 			'e2': 'e2_light', # added to catalog
 			'center_x':0,
@@ -83,9 +84,9 @@ config_dict = {
 			'mag_app': 'mag_true_i', # SOURCE APPARENT MAG
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic': 'size_true',
-			'n_sersic': 'sersic_bulge',
-			'e1':'e1_light', # added to catalog
-			'e2':'e2_light', # added to catalog
+			'n_sersic': 'n_sersic',
+			'e1':'ellipticity_1_true', # added to catalog
+			'e2':'ellipticity_2_true', # added to catalog
 			'center_x': 'XSRC',
 			'center_y': 'YSRC'
 		}
@@ -111,6 +112,7 @@ config_dict = {
 	},
     'psf':{
 		'file': None,
+
 		'parameters':{
 			'psf_type':'PIXEL',
 			'kernel_point_source':draw_psf_kernel,
