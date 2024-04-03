@@ -140,7 +140,7 @@ def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):
 
 
 def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
-	n_perc_points=20,figure=None,legend=None,show_plot=True,block=True,
+	n_perc_points=20,figure=None,ax=None,legend=None,show_plot=True,block=True,
 	weights=None,title=None,ls='-',loc=9,dpi=200):
 	"""	Plot the multidimensional calibration of the neural network predicted
 	posteriors.
@@ -156,6 +156,7 @@ def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
 			plotting.
 		figure (matplotlib.pyplot.figure): A figure that was previously
 			returned by plot_calibration to overplot onto.
+		ax (mamatplotlib.axes): axes to plot onto
 		legend ([str,...]): The legend to use for plotting.
 		show_plot (bool): If true, call plt.show() at the end of the
 			function.
@@ -183,11 +184,13 @@ def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
 	percentages = np.linspace(0.0,1.0,n_perc_points)
 	p_images = np.zeros_like(percentages)
 	if figure is None:
-		fig = plt.figure(figsize=(8,8),dpi=dpi)
-		plt.plot(percentages,percentages,c=color_map[0],ls='--')
+		fig, ax = plt.figure(figsize=(8,8),dpi=dpi)
 	else:
 		fig = figure
-
+		if ax is None:
+			ax = fig.axes
+	plt = ax
+	plt.plot(percentages,percentages,c=color_map[0],ls='--')
 	# We'll estimate the uncertainty in our plat using a jacknife method.
 	p_images_jn = np.zeros((len(p_dlt),n_perc_points))
 	for pi in range(n_perc_points):
@@ -213,15 +216,14 @@ def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
 		plt.text(-0.03,1,'Underconfident')
 		plt.text(0.80,0,'Overconfident')
 	if title is None:
-		plt.title('Calibration of Network Posterior')
+		plt.set_title('Calibration of Network Posterior')
 	else:
-		plt.title(title)
+		plt.set_title(title)
 	if legend is None:
 		plt.legend(['Perfect Calibration','Network Calibration'],
 			loc=loc)
 	else:
 		plt.legend(legend,loc=loc)
-	if show_plot:
-		plt.show(block=block)
-
+	# if show_plot:
+	# 	plt.show(block=block)
 	return fig

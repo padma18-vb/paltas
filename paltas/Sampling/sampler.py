@@ -35,9 +35,7 @@ class Sampler():
 	def __init__(self,configuration_dictionary):
 		self.config_dict = configuration_dictionary
 		self.selected_indices = []
-		path_to_deflectors = self.config_dict['main_deflector']['file']
-		self.deflectors_catalog = pd.read_csv(path_to_deflectors, index_col=0)
-
+		
 	@staticmethod
 	def draw_from_dict(draw_dict):
 		"""Populates a dict with samples drawn from the specified distributions
@@ -145,6 +143,8 @@ class Sampler():
 	
 
 	def catalog_sample(self, index):
+		path_to_deflectors = self.config_dict['main_deflector']['file']
+		self.deflectors_catalog = pd.read_csv(path_to_deflectors, index_col=0)
 
 		# Pull the global warning variable and initialize our dict
 		full_param_dict = {}
