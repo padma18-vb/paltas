@@ -6,7 +6,7 @@ an input configuration dictionary.
 This script generates strong lensing images from paltas config dictionaries.
 
 Example
--------
+------
 To run this script, pass in the desired config as argument::
 
 	$ python -m generate.py path/to/config.py path/to/save_folder --n 1000

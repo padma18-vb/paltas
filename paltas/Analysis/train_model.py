@@ -150,7 +150,7 @@ def main():
 
 	# Normalize outputs if requested
 	if input_norm_path is not None:
-		print('Checking for normalization csv')
+		print('Checking for normalization csv')     
 		metadata = pd.read_csv(metadata_paths_train[0])
 		dataset_generation.normalize_outputs(metadata,all_params,
 			input_norm_path,log_learning_params=log_learning_params)

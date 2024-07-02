@@ -71,11 +71,11 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 			log_norm_dict['mean'] = np.mean(np.log(log_data),axis=0)
 			log_norm_dict['std'] = np.std(np.log(log_data),axis=0)
 			norm_dict = pd.concat([norm_dict, log_norm_dict], ignore_index=True)
-
 		# Set parameter to the index
 		norm_dict = norm_dict.set_index('parameter')
+		if not os.path.isdir(os.path.dirname(input_norm_path)):
+			os.mkdir(os.path.dirname(input_norm_path))
 		norm_dict.to_csv(input_norm_path)
-
 	return norm_dict
 
 

@@ -103,7 +103,7 @@ class ConfigHandler():
 			self.doubles_quads_only = False
 
 		if hasattr(self.config_module, 'no_singles'):
-			self.no_singles = self.config_module.singles
+			self.no_singles = self.config_module.no_singles
 		else:
 			self.no_singles = False
 
@@ -142,6 +142,11 @@ class ConfigHandler():
 			self.compute_PSF_FWHM = self.config_module.compute_PSF_FWHM
 		else:
 			self.compute_PSF_FWHM = False
+
+		if hasattr(self.config_module, 'reduce_noise_by'):
+			self.reduce_noise_by = self.config_module.reduce_noise_by
+		else:
+			self.reduce_noise_by = False
 
 		# Set up the paltas objects we'll use
 		self.los_class = None
@@ -674,12 +679,16 @@ class ConfigHandler():
 				raise FailedCriteriaError()
 
 		# If noise is specified, add it.
-		
 		# image contains all light
 		if add_noise and not (self.subtract_lens or self.subtract_source):
-			image += single_band.noise_for_model(image)
+			noise = single_band.noise_for_model(image)
 		elif add_noise and (self.subtract_lens or self.subtract_source):
-			image += single_band.noise_for_model(image_with_all_light)
+			noise = single_band.noise_for_model(image_with_all_light)
+		elif not add_noise:
+			noise = 0        
+		if self.reduce_noise_by:
+			noise = noise/self.reduce_noise_by
+		image += noise
 
 		# Extract the metadata from the sample
 		metadata = self.get_metadata()
@@ -811,7 +820,7 @@ class ConfigHandler():
 		psf_model_lenstronomy = PSF(**kwargs_psf)
 
 		if self.add_noise:
-			noise_model = single_band.noise_for_model
+			noise_model = single_band.noise_for_model       
 		else:
 			def noise_model(image):
 				return 0

@@ -1,3 +1,16 @@
+# specific file types
+notebooks/*.h5
+notebooks/*.pdf
+notebooks/*.sh
+notebooks/*.out
+notebooks/*.ipynb
+notebooks/*.png
+notebooks/*.jpg
+notebooks/*.csv
+notebooks/*.py
+notebooks/*.txt
+*/.ipynb
+*.ipynb
 # image data
 notebooks/data/**
 notebooks/generated_images/**

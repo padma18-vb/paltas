@@ -110,7 +110,6 @@ def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
 
 	# Calculate the values of eta and the combined precision matrix
 	prec_comb = prec_pred+prec_omega-prec_omega_i
-
 	# prec_comb is not guaranteed to be a valid precision matrix.
 	# When it isn't, the analytical equation used here is wrong.
 	# In those cases, return -np.inf.
@@ -118,10 +117,13 @@ def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
 	# and that its Cholesky decomposition exists
 	# (see https://stackoverflow.com/questions/16266720)
 	if not np.array_equal(prec_comb, prec_comb.T):
+		print('not symmetrical')
 		return -np.inf
 	try:
 		np.linalg.cholesky(prec_comb)
+        
 	except Exception:  # LinAlgError, but numba can't match exceptions
+		print('not pos def')
 		return -np.inf
 
 	cov_comb = np.linalg.inv(prec_comb)
@@ -140,7 +142,6 @@ def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
 	exponent += np.dot(mu_omega.T,np.dot(prec_omega,mu_omega))
 	exponent -= np.dot(mu_omega_i.T,np.dot(prec_omega_i,mu_omega_i))
 	exponent -= np.dot(eta_comb.T,np.dot(cov_comb,eta_comb))
-
 	return -0.5*exponent
 
 
@@ -325,7 +326,6 @@ class ProbabilityClassAnalytical:
 			prec_pred = prec_pred_array[pi]
 			integral += gaussian_product_analytical(mu_pred,prec_pred,
 				mu_omega_i,prec_omega_i,mu_omega,prec_omega)
-		# print(integral)
 		# Treat nan as probability 0.
 		if np.isnan(integral):
 			integral = -np.inf

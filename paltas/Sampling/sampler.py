@@ -34,9 +34,7 @@ class Sampler():
 
 	def __init__(self,configuration_dictionary):
 		self.config_dict = configuration_dictionary
-		self.selected_indices = []
-		path_to_deflectors = self.config_dict['main_deflector']['file']
-		self.deflectors_catalog = pd.read_csv(path_to_deflectors, index_col=0)
+		self.indices = None
 
 	@staticmethod
 	def draw_from_dict(draw_dict):
@@ -145,23 +143,33 @@ class Sampler():
 	
 
 	def catalog_sample(self, index):
-
-		# Pull the global warning variable and initialize our dict
+		path_to_deflectors = self.config_dict['main_deflector']['file']
+		deflectors_catalog = pd.read_csv(path_to_deflectors, index_col=0)
+		# initially, the indices array will be empty (or None); populate it
+		if self.indices is None:
+			# if the provided index is a container of indices
+			if isinstance(index,(list,pd.core.series.Series,np.ndarray)):
+				self.indices = np.array(index)
+			# if the provided index is just one index (int)
+			if isinstance(index,int):
+				self.indices = np.array([index])
+			# if no specific indices are provides, sample all indices
+			else:
+				print("Initializing index array - using all indices from catalog.")
+				self.indices = np.array(deflectors_catalog.index)
 		full_param_dict = {}
-		if index is None:
-			index = np.random.choice(self.deflectors_catalog.index)
-			if index in self.selected_indices:
-				while index in self.selected_indices:
-					index = np.random.choice(self.deflectors_catalog.index)
-		self.selected_indices.append(index)
-		# print('index: ', index)
+		# set the current index equal to first index in self.indices
+		index = self.indices[0]
+		# delete the index that you just used
+		self.indices = np.delete(self.indices, 0)
 
 		# For each possible component of our lensing add the parameters
 		for component in lensing_components:
 			if component in self.config_dict:
 				param_dict = self.draw_from_catalog(component, index)
 				full_param_dict[component+'_parameters'] = param_dict
-
+                
+		# store this index in the metadata
 		full_param_dict['obj_index'] = index
 		return full_param_dict
 	
@@ -171,7 +179,6 @@ class Sampler():
 		draw_from_file = self.config_dict[component]['file']
 		draw_dict= self.config_dict[component]['parameters']
 		if draw_from_file is not None:
-		
 			comp_table = pd.read_csv(draw_from_file, index_col=0)
 			draw_from = comp_table.loc[index, :]
 		else:
@@ -186,15 +193,15 @@ class Sampler():
 			
 			if callable(draw_dict[key]):
 				param_dict[key] = draw_dict[key]()
-			elif not type(draw_dict[key])==str:
-				param_dict[key] = draw_dict[key]
-			else:
-				if draw_from is not None:
+			elif type(draw_dict[key])==str:
+				try:
 					# look for the value in the catalog
 					param_dict[key] = draw_from.loc[draw_dict[key]]
-				else:
+				except:
 					# if it doesn't exist, then the key must be PSF / cosmology / detector
 					param_dict[key] = draw_dict[key]
+			else:
+				param_dict[key] = draw_dict[key]
 
 		return param_dict
 
