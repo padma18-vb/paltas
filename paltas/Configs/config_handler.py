@@ -911,7 +911,7 @@ class ConfigHandler():
 			# Append the counter to the base_seed tuple to form a new seed
 			seed = self.base_seed + (self.reseed_counter,)
 		# Seed numpy's random generator. Note this accepts tuples.
-		np.random.seed(seed)
+		np.random.seed(int(seed))
 		self.reseed_counter += 1
 		# Seed numba's separate random generator
 		# Unfortunately it only accepts an integer argument

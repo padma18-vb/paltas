@@ -117,13 +117,11 @@ def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
 	# and that its Cholesky decomposition exists
 	# (see https://stackoverflow.com/questions/16266720)
 	if not np.array_equal(prec_comb, prec_comb.T):
-		print('not symmetrical')
 		return -np.inf
 	try:
 		np.linalg.cholesky(prec_comb)
         
 	except Exception:  # LinAlgError, but numba can't match exceptions
-		print('not pos def')
 		return -np.inf
 
 	cov_comb = np.linalg.inv(prec_comb)
