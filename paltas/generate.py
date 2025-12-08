@@ -6,7 +6,7 @@ an input configuration dictionary.
 This script generates strong lensing images from paltas config dictionaries.
 
 Example
--------
+------
 To run this script, pass in the desired config as argument::
 
 	$ python -m generate.py path/to/config.py path/to/save_folder --n 1000
@@ -66,7 +66,7 @@ def main():
 	# Gather metadata in a list, will be written to dataframe later
 	metadata_list = []
 	metadata_path = os.path.join(args.save_folder,'metadata.csv')
-
+	print(args.config_dict)
 	# Initialize our config handler
 	config_handler = ConfigHandler(args.config_dict)
 
@@ -89,7 +89,7 @@ def main():
 		# Save the image and the metadata
 		filename = os.path.join(args.save_folder, 'image_%07d' % successes)
 		if not args.h5:
-			np.save(filename, image)
+			np.save(filename, image, allow_pickle=True)
 		if args.save_png_too:
 			plt.imsave(filename + '.png', image)
 

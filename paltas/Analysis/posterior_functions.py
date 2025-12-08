@@ -62,13 +62,25 @@ def plot_coverage(y_pred,y_test,std_pred,parameter_names,
 		_, _, rval, _, _ = linregress(y_test[:,i],y_pred[:,i])
 		straight = np.linspace(np.min(y_test[:,i]),np.max(y_test[:,i]),10)
 		plt.plot(straight, straight, label='',color='k')
-		plt.text(0.8*np.max(straight)+0.2*np.min(straight),np.min(straight),
-			'$R^2$: %.3f'%(rval**2),{'fontsize':fontsize})
+		#plt.text(0.8*np.max(straight)+0.2*np.min(straight),np.min(straight),
+		#	'$R^2$: %.3f'%(rval**2),{'fontsize':fontsize})
 		plt.title(parameter_names[i],fontsize=fontsize)
 		plt.ylabel('Prediction',fontsize=fontsize)
 		plt.xlabel('True Value',fontsize=fontsize)
 		plt.legend(**{'fontsize':fontsize},loc=2)
-	plt.show(block=block)
+
+        #Add mean error/MAE/P
+		ax = plt.gca()
+		mean_error = np.mean(error[:,i])
+		plt.text(0.73,0.05,
+			'Mean Error: %.3f'%(mean_error),{'fontsize':fontsize},transform=ax.transAxes)
+		MAE = np.median(np.abs(error[:,i]))
+		plt.text(0.73,0.11,
+			'MAE: %.3f'%(MAE),{'fontsize':fontsize},transform=ax.transAxes)
+		P = np.median(std_pred[:,i])
+		plt.text(0.73,0.16,'P: %.3f'%(P),{'fontsize':fontsize},transform=ax.transAxes)
+
+	#plt.show(block=block)
 
 
 def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):
@@ -95,17 +107,18 @@ def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):
 	if weights is None:
 		y_mean = np.mean(predict_samps,axis=0)
 	else:
-		y_mean = np.mean(np.expand_dims(weights,axis=-1)*predict_samps,axis=0)
-
+		# Make sure weights are normalized s.t. they sum to 1
+		weights = weights / np.sum(weights,axis=0)
+		# weighted average
+		y_mean = np.sum(np.expand_dims(weights,axis=-1)*predict_samps,axis=0)
 	# The metric for the distance calculation. Using numba for speed.
-	@numba.njit
+	# @numba.njit
 	def d_m(dif,cov):
 		d_metric = np.zeros(dif.shape[0:2])
 		for i in range(d_metric.shape[0]):
 			for j in range(d_metric.shape[1]):
 				d_metric[i,j] = np.dot(dif[i,j],np.dot(cov,dif[i,j]))
 		return d_metric
-
 	# Use emperical covariance for distance metric unless matrix was passed
 	# in.
 	if cov_dist_mat is None:
@@ -120,11 +133,12 @@ def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):
 	if weights is None:
 		return np.mean(p_dlt,axis=0)
 	else:
-		return np.mean(p_dlt*weights,axis=0)
+		# weighted average
+		return np.sum(p_dlt.astype('int')*weights,axis=0)
 
 
 def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
-	n_perc_points=20,figure=None,legend=None,show_plot=True,block=True,
+	n_perc_points=20,figure=None,ax=None,legend=None,show_plot=True,block=True,
 	weights=None,title=None,ls='-',loc=9,dpi=200):
 	"""	Plot the multidimensional calibration of the neural network predicted
 	posteriors.
@@ -140,6 +154,7 @@ def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
 			plotting.
 		figure (matplotlib.pyplot.figure): A figure that was previously
 			returned by plot_calibration to overplot onto.
+		ax (mamatplotlib.axes): axes to plot onto
 		legend ([str,...]): The legend to use for plotting.
 		show_plot (bool): If true, call plt.show() at the end of the
 			function.
@@ -167,11 +182,13 @@ def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
 	percentages = np.linspace(0.0,1.0,n_perc_points)
 	p_images = np.zeros_like(percentages)
 	if figure is None:
-		fig = plt.figure(figsize=(8,8),dpi=dpi)
-		plt.plot(percentages,percentages,c=color_map[0],ls='--')
+		fig, ax = plt.figure(figsize=(8,8),dpi=dpi)
 	else:
 		fig = figure
-
+		if ax is None:
+			ax = fig.axes
+	plt = ax
+	plt.plot(percentages,percentages,c=color_map[0],ls='--')
 	# We'll estimate the uncertainty in our plat using a jacknife method.
 	p_images_jn = np.zeros((len(p_dlt),n_perc_points))
 	for pi in range(n_perc_points):
@@ -197,15 +214,15 @@ def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
 		plt.text(-0.03,1,'Underconfident')
 		plt.text(0.80,0,'Overconfident')
 	if title is None:
-		plt.title('Calibration of Network Posterior')
+		plt.set_title('Calibration of Network Posterior')
 	else:
-		plt.title(title)
+		plt.set_title(title)
 	if legend is None:
 		plt.legend(['Perfect Calibration','Network Calibration'],
 			loc=loc)
 	else:
 		plt.legend(legend,loc=loc)
-	if show_plot:
-		plt.show(block=block)
+	# if show_plot:
+	# 	plt.show(block=block)
 
 	return fig

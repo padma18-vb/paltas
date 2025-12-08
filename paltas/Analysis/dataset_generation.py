@@ -71,11 +71,11 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 			log_norm_dict['mean'] = np.mean(np.log(log_data),axis=0)
 			log_norm_dict['std'] = np.std(np.log(log_data),axis=0)
 			norm_dict = pd.concat([norm_dict, log_norm_dict], ignore_index=True)
-
 		# Set parameter to the index
 		norm_dict = norm_dict.set_index('parameter')
+		if not os.path.isdir(os.path.dirname(input_norm_path)):
+			os.mkdir(os.path.dirname(input_norm_path))
 		norm_dict.to_csv(input_norm_path)
-
 	return norm_dict
 
 
@@ -152,7 +152,7 @@ def kwargs_detector_to_tf_noise(image,kwargs_detector):
 
 def generate_tf_record(npy_folder,learning_params,metadata_path,
 	tf_record_path,h5=False):
-	"""Generate a TFRecord file from a directory of numpy or h5py files.
+	"""Generate a TFRecord file from a directory of numpy files.
 
 	Args:
 		root_path (str): The path to the folder containing the numpy files.
@@ -163,11 +163,10 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 		tf_record_path (str): The path to which the TFRecord will be saved
 		h5 (bool): Boolean for whether the images were generated as h5 files (True) or numpy (False).
 	"""
-	# Pull the list of numpy and/or h5 filepaths from the directory. Assumes there is only one h5 file in the folder.
+	# Pull the list of numpy filepaths from the directory
 	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
 	npy_file_list = list(sorted(npy_file_list))
 	h5_file = os.path.join(npy_folder,'image_data.h5')
-
 	# Open label csv
 	metadata = pd.read_csv(metadata_path, index_col=None)
 
@@ -191,11 +190,12 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 	with tf.io.TFRecordWriter(tf_record_path) as writer:
 		if h5:
 			f = h5py.File(h5_file, "r")
+			image_array = f['data'][()]
 		# Iteratively retrieves images from list of npy files, or images within the h5 file:  
 		for file_number in tqdm(range(number_of_files)):
 			if h5:
 				index = int(file_number)
-				image = f['data'][()][index]
+				image = image_array[index]
 				image_shape = image.shape
 			else:
 				npy_file = npy_file_list[file_number]
@@ -234,9 +234,31 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 		if h5: 
 			f.close()
 
+def norm_image(image):
+	""" helper function to normalize an image by its standard deviation
+	"""
+	image = image / tf.math.reduce_std(image)
+	return image
+
+def standard_norm_image(image):
+	""" helper function to normalize an image by subtracting from the mean and dividing
+		its standard deviation
+	"""
+	image = (image - tf.math.reduce_mean(image))/ tf.math.reduce_std(image)
+	return image
+
+def log_norm_image(image):
+	""" helper function to log-normalize an image
+	"""
+	image = tf.experimental.numpy.log10(1+image)
+	# rescale to range [0,1]
+	image = (image - tf.math.reduce_min(image)) / (
+		tf.math.reduce_max(image)- tf.math.reduce_min(image))
+	return image
+
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
-	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
-	log_learning_params=None,shuffle=True):
+	n_epochs,norm_images=False,log_norm_images=False,std_norm_images=False,input_norm_path=None,
+	kwargs_detector=None,log_learning_params=None,shuffle=True):
 	"""Generate a TFDataset that a model can be trained with.
 
 	Args:
@@ -249,6 +271,10 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		n_epochs (int): The number of training epochs. The dataset object will
 			deal with iterating over the data for repeated epochs.
 		norm_images (bool): If True, images will be normalized to have std 1.
+		log_norm_images (bool): If True, images will be log-normalized and
+			rescaled to range [0,1]
+		std_norm_images (bool): If True, images will be standardized and
+			pixels will be described as their deviation from the mean
 		input_norm_path (str): The path to a csv that contains the
 			normalization to be applied to the output parameters. If None
 			no normalization will be applied.
@@ -309,9 +335,23 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		if noise_function is not None:
 			image += noise_function(image,kwargs_detector)
 
+		# Check if both normalization flags are set to True
+		if norm_images and log_norm_images:
+			raise ValueError('Error: both norm_images and log_norm_images'+ 
+		    	'flags have been set to True in generate_tf_dataset()')
+
 		# If the images must be normed divide by the std
 		if norm_images:
-			image = image / tf.math.reduce_std(image)
+			image = norm_image(image)
+
+		# add option to do log norm as described in: 
+		# 	https://arxiv.org/pdf/2012.00042.pdf
+		# (went and checked in h0rton, it uses log10)
+		if log_norm_images:
+			image = log_norm_image(image)
+		
+		if std_norm_images:
+			image = standard_norm_image(image)
 
 		# Log the parameter if needed
 		for param in log_learning_params_list:
@@ -466,8 +506,8 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 
 
 def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
-	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
-	log_learning_params=None,shuffle=True):
+	n_epochs,norm_images=False,log_norm_images=False,std_norm_images=False,input_norm_path=None,
+	kwargs_detector=None,log_learning_params=None,shuffle=True):
 	"""Returns a generator that builds off of a TFDataset by adding random
 	rotations to the images and parameters.
 
@@ -481,6 +521,10 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 		n_epochs (int): The number of training epochs. The dataset object will
 			deal with iterating over the data for repeated epochs.
 		norm_images (bool): If True, images will be normalized to have std 1.
+		log_norm_images (bool): If True, images will be log-normalized and
+			rescaled to range [0,1]
+		std_norm_images (bool): If True, images will be standardized and
+			pixels will be described as their deviation from the mean
 		input_norm_path (str): The path to a csv that contains the
 			normalization to be applied to the output parameters. If None
 			no normalization will be applied.
@@ -499,8 +543,8 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 	# Create our base tf dataset without normalization
 	base_dataset = generate_tf_dataset(tf_record_path,learning_params,
 		batch_size,n_epochs,norm_images=norm_images,
-		kwargs_detector=kwargs_detector,log_learning_params=log_learning_params,
-		shuffle=shuffle)
+		log_norm_images=log_norm_images,std_norm_images=std_norm_images,kwargs_detector=kwargs_detector,
+		log_learning_params=log_learning_params,shuffle=shuffle)
 
 	# If normalization file is provided use it
 	if input_norm_path is not None:
