@@ -6,7 +6,7 @@ import copy
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import wcs
-from drizzle.drizzle import Drizzle
+from drizzle import Drizzle
 from scipy.interpolate import RectBivariateSpline
 import warnings
 import numba

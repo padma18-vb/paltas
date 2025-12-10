@@ -84,11 +84,37 @@ class ConfigHandler():
 		self.catalog = self.config_module.catalog
 		self.index = index
 		# Set up our sampler and draw a sample for initialization
-		self.sampler = Sampler(configuration_dictionary=self.config_dict)
+		self.sampler = Sampler()
+		try:
+			self.multiband = self.config_module.multiband
+			self.filter_list = self.config_module.filter_list
+			self.N_bands = len(self.filter_list)
+			self.filter_dependent_properties = self.config_module.filter_dependent_properties
+		except:
+			print('Using single-band configuration')
+			self.multiband = False
+			self.N_bands = 1
+
+		# Set up our sampler and draw a sample for initialization
+		if self.multiband:
+			self.multiband_config_dict = {}
+			for band in self.filter_list:
+				self.multiband_config_dict[band] = copy.deepcopy(self.config_dict)
+				#Make a dictionary of lens light classes
+				for filter_dependent_property in self.filter_dependent_properties:
+					property_type = filter_dependent_property.split('_parameters_')[0]
+					property_key = filter_dependent_property.split('_parameters_')[-1]
+					self.multiband_config_dict[band][property_type]['parameters'][property_key] = self.multiband_config_dict[band][property_type]['parameters'][property_key][band]
+		if self.multiband:
+			self.sampler_dict = {band:Sampler(self.multiband_config_dict[band], configuration_dictionary=self.config_dict) for band in self.filter_list}
+		else: 
+			self.sampler = Sampler(self.config_dict)
 		self.sample = None
 		self.draw_new_sample()
-		sample = self.get_current_sample()
-
+		if self.multiband:
+			sample_dict = self.get_current_sample()
+		else: 
+			sample = self.get_current_sample()
 		# Initialize all the parameters and classes we need for drawing
 		# lenstronomy inputs and images
 
@@ -148,39 +174,72 @@ class ConfigHandler():
 		else:
 			self.reduce_noise_by = False
 
-		# Set up the paltas objects we'll use
-		self.los_class = None
-		self.subhalo_class = None
-		self.main_deflector_class = None
-		self.lens_light_class = None
-		self.point_source_class = None
-		self.do_drizzle = False
-		if 'los' in self.config_dict:
-			self.los_class = self.config_dict['los']['class'](
-				sample['los_parameters'],sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-		if 'subhalo' in self.config_dict:
-			self.subhalo_class = self.config_dict['subhalo']['class'](
-				sample['subhalo_parameters'],sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-		if 'main_deflector' in self.config_dict:
-			self.main_deflector_class = (
-				self.config_dict['main_deflector']['class'](
-					sample['main_deflector_parameters'],
-					sample['cosmology_parameters']))
-		if 'drizzle' in self.config_dict:
-			self.do_drizzle = True
-		if 'lens_light' in self.config_dict:
-			self.lens_light_class = self.config_dict['lens_light']['class'](
-				sample['cosmology_parameters'], sample['lens_light_parameters'])
-		if 'point_source' in self.config_dict:
-			self.point_source_class = self.config_dict['point_source']['class'](
-				sample['cosmology_parameters'],sample['point_source_parameters'])
-
-		# We always need a source class
-		self.source_class = self.config_dict['source']['class'](
-			sample['cosmology_parameters'],sample['source_parameters'])
-
+		if self.multiband:
+			# Set up the paltas objects we'll use
+			self.los_class_dict = {band:None for band in self.filter_list}
+			self.subhalo_class_dict = {band:None for band in self.filter_list}
+			self.main_deflector_class_dict = {band:None for band in self.filter_list}
+			self.lens_light_class_dict = {band:None for band in self.filter_list}
+			self.point_source_class_dict = {band:None for band in self.filter_list}
+			self.do_drizzle = False
+			self.source_class_dict = {}
+			for band in self.filter_list:
+				if 'los' in self.multiband_config_dict[band]:
+					self.los_class_dict[band] = self.multiband_config_dict[band]['los']['class'](
+						sample_dict[band]['los_parameters'],sample_dict[band]['main_deflector_parameters'],
+						sample_dict[band]['source_parameters'],sample_dict[band]['cosmology_parameters'])
+				if 'subhalo' in self.multiband_config_dict[band]:
+					self.subhalo_class_dict[band] = self.multiband_config_dict[band]['subhalo']['class'](
+						sample_dict[band]['subhalo_parameters'],sample_dict[band]['main_deflector_parameters'],
+						sample_dict[band]['source_parameters'],sample_dict[band]['cosmology_parameters'])
+				if 'main_deflector' in self.multiband_config_dict[band]:
+					self.main_deflector_class_dict[band] = (
+						self.multiband_config_dict[band]['main_deflector']['class'](
+							sample_dict[band]['main_deflector_parameters'],
+							sample_dict[band]['cosmology_parameters']))
+				if 'drizzle' in self.multiband_config_dict[band]:
+					self.do_drizzle = True
+				if 'lens_light' in self.multiband_config_dict[band]:
+					self.lens_light_class_dict[band] = self.multiband_config_dict[band]['lens_light']['class'](
+						sample_dict[band]['cosmology_parameters'], sample_dict[band]['lens_light_parameters'])
+				if 'point_source' in self.multiband_config_dict[band]:
+					self.point_source_class_dict[band] = self.multiband_config_dict[band]['point_source']['class'](
+						sample_dict[band]['point_source_parameters'])
+				# We always need a source class
+				self.source_class_dict[band] = self.multiband_config_dict[band]['source']['class'](
+						sample_dict[band]['cosmology_parameters'],sample_dict[band]['source_parameters'])
+		else:
+			# Set up the paltas objects we'll use
+			self.los_class = None
+			self.subhalo_class = None
+			self.main_deflector_class = None
+			self.lens_light_class = None
+			self.point_source_class = None
+			self.do_drizzle = False
+			if 'los' in self.config_dict:
+				self.los_class = self.config_dict['los']['class'](
+					sample['los_parameters'],sample['main_deflector_parameters'],
+					sample['source_parameters'],sample['cosmology_parameters'])
+			if 'subhalo' in self.config_dict:
+				self.subhalo_class = self.config_dict['subhalo']['class'](
+					sample['subhalo_parameters'],sample['main_deflector_parameters'],
+					sample['source_parameters'],sample['cosmology_parameters'])
+			if 'main_deflector' in self.config_dict:
+				self.main_deflector_class = (
+					self.config_dict['main_deflector']['class'](
+						sample['main_deflector_parameters'],
+						sample['cosmology_parameters']))
+			if 'drizzle' in self.config_dict:
+				self.do_drizzle = True
+			if 'lens_light' in self.config_dict:
+				self.lens_light_class = self.config_dict['lens_light']['class'](
+					sample['cosmology_parameters'], sample['lens_light_parameters'])
+			if 'point_source' in self.config_dict:
+				self.point_source_class = self.config_dict['point_source']['class'](
+					sample['point_source_parameters'])
+			# We always need a source class
+			self.source_class = self.config_dict['source']['class'](
+					sample['cosmology_parameters'],sample['source_parameters'])
 		# See if a magnification cut was specified
 		if hasattr(self.config_module, 'mag_cut'):
 			self.mag_cut = self.config_module.mag_cut
@@ -206,6 +265,8 @@ class ConfigHandler():
 		"""
 		if self.catalog:
 			self.sample = self.sampler.catalog_sample(index=self.index)
+		if self.multiband:
+			self.sample_dict = {band:self.sampler_dict[band].sample() for band in self.filter_list}
 		else:
 			self.sample = self.sampler.sample()
 
@@ -215,7 +276,10 @@ class ConfigHandler():
 		Returns:
 			(dict): The current sample
 		"""
-		return self.sample
+		if self.multiband:
+			return self.sample_dict
+		else:
+			return self.sample
 
 	def get_lenstronomy_models_kwargs(self,new_sample=True):
 		"""Takes a sample from the config and returns the list of lenstronomy
@@ -243,111 +307,144 @@ class ConfigHandler():
 		# Either draw a new sample or use the current sample.
 		if new_sample:
 			self.draw_new_sample()
-		sample = self.get_current_sample()
-
+		if self.multiband: 
+			sample_dict = self.get_current_sample()
+			for band in self.filter_list:
+				for parameter_type in sample_dict[band].keys():
+					for parameter in sample_dict[band][parameter_type].keys():
+						if f'{parameter_type}_{parameter}' in self.filter_dependent_properties: 
+							continue
+						else:
+							sample_dict[band][parameter_type][parameter] = sample_dict[self.filter_list[0]][parameter_type][parameter]
+		else:
+			sample = self.get_current_sample()
 		# Populate the list of models and kwargs lenstronomy needs
-		complete_lens_model_list = []
-		complete_lens_model_kwargs = []
-		complete_z_list = []
-		lens_light_model_list = []
-		lens_light_kwargs_list = []
-		point_source_model_list = []
-		point_source_kwargs_list = []
-		source_model_list = []
-		source_kwargs_list = []
-		source_redshift_list = []
-
 		# For each lensing object that's present, add them to the model and
 		# kwargs list
-		if self.los_class is not None:
-			self.los_class.update_parameters(
-				sample['los_parameters'],sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-			los_model_list, los_kwargs_list, los_z_list = (
-				self.los_class.draw_los())
-			interp_model_list, interp_kwargs_list, interp_z_list = (
-				self.los_class.calculate_average_alpha(self.numpix*
-					self.kwargs_numerics['supersampling_factor']))
-			complete_lens_model_list += los_model_list + interp_model_list
-			complete_lens_model_kwargs += los_kwargs_list + interp_kwargs_list
-			complete_z_list += los_z_list + interp_z_list
-		if self.subhalo_class is not None:
-			self.subhalo_class.update_parameters(
-				sample['subhalo_parameters'],
-				sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-			sub_model_list, sub_kwargs_list, sub_z_list = (
-				self.subhalo_class.draw_subhalos())
-			complete_lens_model_list += sub_model_list
-			complete_lens_model_kwargs += sub_kwargs_list
-			complete_z_list += sub_z_list
-		if self.main_deflector_class is not None:
-			self.main_deflector_class.update_parameters(
-				sample['main_deflector_parameters'],sample['cosmology_parameters'])
-			main_model_list, main_kwargs_list, main_z_list = (
-				self.main_deflector_class.draw_main_deflector())
-			complete_lens_model_list += main_model_list
-			complete_lens_model_kwargs += main_kwargs_list
-			complete_z_list += main_z_list
-		if self.lens_light_class is not None:
-			self.lens_light_class.update_parameters(
-				cosmology_parameters=sample['cosmology_parameters'],
-				source_parameters=sample['lens_light_parameters'])
-			lens_light_model_list, lens_light_kwargs_list, _ = (
-				self.lens_light_class.draw_source())
-		if self.point_source_class is not None:
-			self.point_source_class.update_parameters(
-				cosmology_parameters=sample['cosmology_parameters'],
-				point_source_parameters=sample['point_source_parameters'])
-			point_source_model_list,point_source_kwargs_list = (
-				self.point_source_class.draw_point_source())
+		def create_model(sample,
+				   		los_class,subhalo_class,main_deflector_class,
+						lens_light_class,point_source_class,source_class):
+			complete_lens_model_list = []
+			complete_lens_model_kwargs = []
+			complete_z_list = []
+			lens_light_model_list = []
+			lens_light_kwargs_list = []
+			point_source_model_list = []
+			point_source_kwargs_list = []
+			source_model_list = []
+			source_kwargs_list = []
+			source_redshift_list = []
+			if los_class is not None:
+				los_class.update_parameters(
+					sample['los_parameters'],sample['main_deflector_parameters'],
+					sample['source_parameters'],sample['cosmology_parameters'])
+				los_model_list, los_kwargs_list, los_z_list = (
+					los_class.draw_los())
+				interp_model_list, interp_kwargs_list, interp_z_list = (
+					los_class.calculate_average_alpha(self.numpix*
+						self.kwargs_numerics['supersampling_factor']))
+				complete_lens_model_list += los_model_list + interp_model_list
+				complete_lens_model_kwargs += los_kwargs_list + interp_kwargs_list
+				complete_z_list += los_z_list + interp_z_list
+			if subhalo_class is not None:
+				subhalo_class.update_parameters(
+					sample['subhalo_parameters'],
+					sample['main_deflector_parameters'],
+					sample['source_parameters'],sample['cosmology_parameters'])
+				sub_model_list, sub_kwargs_list, sub_z_list = (
+					subhalo_class.draw_subhalos())
+				complete_lens_model_list += sub_model_list
+				complete_lens_model_kwargs += sub_kwargs_list
+				complete_z_list += sub_z_list
+			if main_deflector_class is not None:
+				main_deflector_class.update_parameters(
+					sample['main_deflector_parameters'],sample['cosmology_parameters'])
+				main_model_list, main_kwargs_list, main_z_list = (
+					main_deflector_class.draw_main_deflector())
+				complete_lens_model_list += main_model_list
+				complete_lens_model_kwargs += main_kwargs_list
+				complete_z_list += main_z_list
+			if lens_light_class is not None:
+				lens_light_class.update_parameters(
+					cosmology_parameters=sample['cosmology_parameters'],
+					source_parameters=sample['lens_light_parameters'])
+				lens_light_model_list, lens_light_kwargs_list, _ = (
+					lens_light_class.draw_source())
+			if point_source_class is not None:
+				point_source_class.update_parameters(
+					sample['point_source_parameters'])
+				point_source_model_list,point_source_kwargs_list = (
+					point_source_class.draw_point_source())
 
-		# Now get the model and kwargs from the source class (which must
-		# always be present.)
-		self.source_class.update_parameters(
-			cosmology_parameters=sample['cosmology_parameters'],
-			source_parameters=sample['source_parameters'])
+			# Now get the model and kwargs from the source class (which must
+			# always be present.)
+			source_class.update_parameters(
+				cosmology_parameters=sample['cosmology_parameters'],
+				source_parameters=sample['source_parameters'])
 
-		# For catalog objects we also want to save the catalog index
-		# and the (possibly randomized) additional rotation angle. We will
-		# therefore push these into the sample object.
-		if isinstance(self.source_class,GalaxyCatalog):
-			catalog_i, phi = self.source_class.fill_catalog_i_phi_defaults()
-			source_model_list, source_kwargs_list, source_redshift_list = (
-				self.source_class.draw_source(catalog_i=catalog_i, phi=phi))
-			sample['source_parameters']['catalog_i'] = catalog_i
-			sample['source_parameters']['phi'] = phi
+			# For catalog objects we also want to save the catalog index
+			# and the (possibly randomized) additional rotation angle. We will
+			# therefore push these back into the sample object.
+			if isinstance(source_class,GalaxyCatalog):
+				catalog_i, phi = source_class.fill_catalog_i_phi_defaults()
+				source_model_list, source_kwargs_list, source_redshift_list = (
+					source_class.draw_source(catalog_i=catalog_i, phi=phi))
+				sample['source_parameters']['catalog_i'] = catalog_i
+				sample['source_parameters']['phi'] = phi
+			else:
+				source_model_list, source_kwargs_list, source_redshift_list = (
+					source_class.draw_source())
+
+			# Check to see if we need multiplane
+			multi_plane = False
+			if (len(np.unique(source_redshift_list))>1 or
+				len(np.unique(complete_z_list))>1):
+				multi_plane = True
+
+			# Package all of the lists into a model and parameters dictionary.
+			kwargs_model = {}
+			kwargs_params = {}
+			kwargs_model['lens_model_list'] = complete_lens_model_list
+			kwargs_params['kwargs_lens'] = complete_lens_model_kwargs
+			kwargs_model['lens_redshift_list'] = complete_z_list
+			kwargs_model['lens_light_model_list'] = lens_light_model_list
+			kwargs_params['kwargs_lens_light'] = lens_light_kwargs_list
+			kwargs_model['point_source_model_list'] = point_source_model_list
+			kwargs_params['kwargs_ps'] = point_source_kwargs_list
+			kwargs_model['source_light_model_list'] = source_model_list
+			kwargs_params['kwargs_source'] = source_kwargs_list
+			kwargs_model['source_redshift_list'] = source_redshift_list
+			kwargs_model['multi_plane'] = multi_plane
+
+			# The source convention is definied by the source parameters. This is
+			# also what the lens model classes use when setting their parameters.
+			kwargs_model['z_source'] = sample['source_parameters']['z_source']
+			kwargs_model['z_source_convention'] = kwargs_model['z_source']
+
+			return kwargs_model, kwargs_params,\
+				   sample,los_class,subhalo_class,main_deflector_class,\
+				   lens_light_class,point_source_class,source_class
+
+		if self.multiband:
+			kwargs_model_dict,kwargs_params_dict = {},{}
+			for band in self.filter_list:
+				kwargs_model,kwargs_params,sample_dict[band],\
+						self.los_class_dict[band],self.subhalo_class_dict[band],self.main_deflector_class_dict[band],\
+						self.lens_light_class_dict[band],self.point_source_class_dict[band],self.source_class_dict[band] = \
+					create_model(sample_dict[band],
+				   		self.los_class_dict[band],self.subhalo_class_dict[band],self.main_deflector_class_dict[band],
+						self.lens_light_class_dict[band],self.point_source_class_dict[band],self.source_class_dict[band])
+				kwargs_model_dict[band] = kwargs_model
+				kwargs_params_dict[band] = kwargs_params
+			return kwargs_model_dict,kwargs_params_dict
 		else:
-			source_model_list, source_kwargs_list, source_redshift_list = (
-				self.source_class.draw_source())
-
-		# Check to see if we need multiplane
-		multi_plane = False
-		if (len(np.unique(source_redshift_list))>1 or
-			len(np.unique(complete_z_list))>1):
-			multi_plane = True
-
-		# Package all of the lists into a model and parameters dictionary.
-		kwargs_model = {}
-		kwargs_params = {}
-		kwargs_model['lens_model_list'] = complete_lens_model_list
-		kwargs_params['kwargs_lens'] = complete_lens_model_kwargs
-		kwargs_model['lens_redshift_list'] = complete_z_list
-		kwargs_model['lens_light_model_list'] = lens_light_model_list
-		kwargs_params['kwargs_lens_light'] = lens_light_kwargs_list
-		kwargs_model['point_source_model_list'] = point_source_model_list
-		kwargs_params['kwargs_ps'] = point_source_kwargs_list
-		kwargs_model['source_light_model_list'] = source_model_list
-		kwargs_params['kwargs_source'] = source_kwargs_list
-		kwargs_model['source_redshift_list'] = source_redshift_list
-		kwargs_model['multi_plane'] = multi_plane
-
-		# The source convention is definied by the source parameters. This is
-		# also what the lens model classes use when setting their parameters.
-		kwargs_model['z_source'] = sample['source_parameters']['z_source']
-		kwargs_model['z_source_convention'] = kwargs_model['z_source']
-
-		return kwargs_model, kwargs_params
+			kwargs_model,kwargs_params,sample,\
+				   		self.los_class,self.subhalo_class,self.main_deflector_class,\
+						self.lens_light_class,self.point_source_class,self.source_class = \
+					create_model(sample,
+				   		self.los_class,self.subhalo_class,self.main_deflector_class,
+						self.lens_light_class,self.point_source_class,self.source_class)
+			return kwargs_model,kwargs_params
 
 	def get_metadata(self):
 		"""Returns the values drawn from the configuration file to generate
@@ -371,65 +468,78 @@ class ConfigHandler():
 		global SERIALIZATIONWARNING
 
 		# Get the samples and the metadata.
-		sample = self.get_current_sample()
-		metadata = {}
-		if self.catalog:
-			metadata['obj_index'] = sample['obj_index']
-			sample.pop('obj_index', None)
+		if self.multiband: 
+			sample_dict = self.get_current_sample()
+			metadata_dict = {}
+		else:
+			sample = self.get_current_sample()
+			metadata = {}
 
-		for component in sample:
-			for key in sample[component]:
-				comp_value = sample[component][key]
-				# Make sure that lists and other objects that cannot be
-				# serialized well are not written out. Warn about this only
-				# once.
-				if (component, key) in EXCLUDE_FROM_METADATA:
-					continue
-				if isinstance(comp_value,bool):
-					metadata[component+'_'+key] = int(comp_value)
-				elif isinstance(comp_value, (str, int, float)) or comp_value is None:
-					metadata[component+'_'+key] = comp_value
-				elif SERIALIZATIONWARNING:
-					warnings.warn(
-						f'Parameter ({component}, {key}) in config_dict, '
-						'and possibly others, will not be written to '
-						'metadata.csv',
-						category=RuntimeWarning)
-					SERIALIZATIONWARNING = False
-					
-		# write caustic area if requested
-		if self.compute_caustic_area:
-			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
-				new_sample=False)
-			lm = LensModel(kwargs_model['lens_model_list'])
-			lm_ext = LensModelExtensions(lm)
-			compute_window = self.numpix * sample['detector_parameters']['pixel_scale']
-			metadata['main_deflector_parameters_caustic_area'] = lm_ext.caustic_area(
-				kwargs_params['kwargs_lens'],{'compute_window':compute_window})
+
+		def generate_metadata(sample):
+			metadata = {}
+			for component in sample:
+				for key in sample[component]:
+					comp_value = sample[component][key]
+					# Make sure that lists and other objects that cannot be
+					# serialized well are not written out. Warn about this only
+					# once.
+					if (component, key) in EXCLUDE_FROM_METADATA:
+						continue
+					if isinstance(comp_value,bool):
+						metadata[component+'_'+key] = int(comp_value)
+					elif isinstance(comp_value, (str, int, float)) or comp_value is None:
+						metadata[component+'_'+key] = comp_value
+					elif SERIALIZATIONWARNING:
+						warnings.warn(
+							f'Parameter ({component}, {key}) in config_dict, '
+							'and possibly others, will not be written to '
+							'metadata.csv',
+							category=RuntimeWarning)
+						SERIALIZATIONWARNING = False
+			# write caustic area if requested
+			if self.compute_caustic_area:
+				kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
+					new_sample=False)
+				lm = LensModel(kwargs_model['lens_model_list'])
+				lm_ext = LensModelExtensions(lm)
+				compute_window = self.numpix * sample['detector_parameters']['pixel_scale']
+				metadata['main_deflector_parameters_caustic_area'] = lm_ext.caustic_area(
+					kwargs_params['kwargs_lens'],{'compute_window':compute_window})
+				
+				# also write minimum separation btwn. caustic & source
+				_,_,ra_list,dec_list = lm_ext.critical_curve_caustics(
+					kwargs_params['kwargs_lens'],compute_window=compute_window)
+				
+				# index into list is for "selecting specified vortex"? (default is 0)
+				ra_offset = kwargs_params['kwargs_source'][0]['center_x'] - ra_list[0]
+				dec_offset = kwargs_params['kwargs_source'][0]['center_y'] - dec_list[0]
+				min_distance = np.sqrt(np.min(ra_offset**2 + dec_offset**2))
+				metadata['source_parameters_distance_to_caustic'] = min_distance
 			
-			# also write minimum separation btwn. caustic & source
-			_,_,ra_list,dec_list = lm_ext.critical_curve_caustics(
-				kwargs_params['kwargs_lens'],compute_window=compute_window)
-			
-			# index into list is for "selecting specified vortex"? (default is 0)
-			ra_offset = kwargs_params['kwargs_source'][0]['center_x'] - ra_list[0]
-			dec_offset = kwargs_params['kwargs_source'][0]['center_y'] - dec_list[0]
-			min_distance = np.sqrt(np.min(ra_offset**2 + dec_offset**2))
-			metadata['source_parameters_distance_to_caustic'] = min_distance
-			
-		if self.compute_mass_enclosed:
-			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
-				new_sample=False)
-			lm = LensModel(kwargs_model['lens_model_list'])
-			# r is in arcsec
-			mass_enclosed = lm.lens_model.func_list[0].mass_2d_lens(r=1.5,
-				sigma0=kwargs_params['kwargs_lens'][0]['sigma0'],
-				r_core=kwargs_params['kwargs_lens'][0]['r_core'], 
-				gamma=kwargs_params['kwargs_lens'][0]['gamma'])
-			metadata['main_deflector_parameters_M_encl_15e-1arcsec'] = mass_enclosed
+			if self.compute_mass_enclosed:
+				kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
+					new_sample=False)
+				lm = LensModel(kwargs_model['lens_model_list'])
+				# r is in arcsec
+				mass_enclosed = lm.lens_model.func_list[0].mass_2d_lens(r=1.5,
+					sigma0=kwargs_params['kwargs_lens'][0]['sigma0'],
+					r_core=kwargs_params['kwargs_lens'][0]['r_core'], 
+					gamma=kwargs_params['kwargs_lens'][0]['gamma'])
+				metadata['main_deflector_parameters_M_encl_15e-1arcsec'] = mass_enclosed
+			if self.catalog:
+					metadata['obj_index'] = sample['obj_index']
+					sample.pop('obj_index', None)
+			return metadata
+		
+		if self.multiband:
+			metadata_dict = {filter_i:generate_metadata(sample_dict[filter_i]) for filter_i in self.filter_list}
+			return metadata_dict
+		else:
+			metadata = generate_metadata(sample)
 
 		return metadata
-
+	
 	def get_sample_cosmology(self,as_astropy=False):
 		"""Return the cosmology object for the current sample.
 
@@ -582,9 +692,36 @@ class ConfigHandler():
 			Will raise an error if the produced image does not meet a cut.
 		"""
 		# Get the lenstronomy parameters and the sample
-		sample = self.get_current_sample()
-		kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
-			new_sample=False)
+		if self.multiband:
+			sample_dict = self.get_current_sample()
+			kwargs_model_dict, kwargs_params_dict = self.get_lenstronomy_models_kwargs(
+				new_sample=False)
+			# Get the psf and detector parameters from the sample
+			kwargs_psf_dict = {filter_i:sample_dict[filter_i]['psf_parameters'] for filter_i in self.filter_list}
+			kwargs_detector_dict = {filter_i:sample_dict[filter_i]['detector_parameters'] for filter_i in self.filter_list}
+			# Build the psf model
+			if apply_psf:
+				psf_model_dict = {filter_i:PSF(**kwargs_psf_dict[filter_i]) for filter_i in self.filter_list} 
+			else:
+				psf_model = {filter_i:PSF(psf_type='NONE') for filter_i in self.filter_list}
+			# Build the data and noise models we'll use.
+			data_api_dict = {filter_i:DataAPI(numpix=self.numpix,**kwargs_detector_dict[filter_i]) for filter_i in self.filter_list}
+			single_band_dict = {filter_i:SingleBand(**kwargs_detector_dict[filter_i]) for filter_i in self.filter_list}
+		else: 
+			sample = self.get_current_sample()			
+			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
+				new_sample=False)
+			# Get the psf and detector parameters from the sample
+			kwargs_psf = sample['psf_parameters']
+			kwargs_detector = sample['detector_parameters']
+			# Build the psf model
+			if apply_psf:
+				psf_model = PSF(**kwargs_psf)
+			else:
+				psf_model = PSF(psf_type='NONE')
+			# Build the data and noise models we'll use.
+			data_api = DataAPI(numpix=self.numpix,**kwargs_detector)
+			single_band = SingleBand(**kwargs_detector)
 
 		# Get the psf, detector, and pixel grid parameters from the sample
 		kwargs_psf = sample['psf_parameters']
@@ -604,110 +741,162 @@ class ConfigHandler():
 		data_api = DataAPI(numpix=self.numpix,
 			kwargs_pixel_grid=kwargs_pixel_grid,**kwargs_detector)
 		single_band = SingleBand(**kwargs_detector)
-		
-		# Pull the cosmology and source redshift
-		cosmo = get_cosmology(sample['cosmology_parameters'])
+		def generate_image_and_metadata(sample,kwargs_model,kwargs_params,single_band,data_api,psf_model,band=None):
+			# Pull the cosmology and source redshift
+			cosmo = get_cosmology(sample['cosmology_parameters'])
+			# Build our lens and source models.
+			lens_model = LensModel(kwargs_model['lens_model_list'],
+				z_source=kwargs_model['z_source'],
+				z_source_convention=kwargs_model['z_source_convention'],
+				lens_redshift_list=kwargs_model['lens_redshift_list'],
+				cosmo=cosmo.toAstropy(),multi_plane=kwargs_model['multi_plane'])
+			source_light_model = LightModel(kwargs_model['source_light_model_list'],
+				source_redshift_list=kwargs_model['source_redshift_list'])
+			lens_light_model = LightModel(kwargs_model['lens_light_model_list'])
 
-		# Build our lens and source models.
-		lens_model = LensModel(kwargs_model['lens_model_list'],
-			z_source=kwargs_model['z_source'],
-			z_source_convention=kwargs_model['z_source_convention'],
-			lens_redshift_list=kwargs_model['lens_redshift_list'],
-			cosmo=cosmo.toAstropy(),multi_plane=kwargs_model['multi_plane'])
-		source_light_model = LightModel(kwargs_model['source_light_model_list'],
-			source_redshift_list=kwargs_model['source_redshift_list'])
-		lens_light_model = LightModel(kwargs_model['lens_light_model_list'])
+			# Point source may need lens eqn solver kwargs
+			lens_equation_params = None
+			if 'lens_equation_solver_parameters' in sample.keys():
+				lens_equation_params = sample['lens_equation_solver_parameters']
+			point_source_model = PointSource(
+				kwargs_model['point_source_model_list'],lens_model=lens_model,
+				save_cache=True,kwargs_lens_eqn_solver=lens_equation_params)
 
-		# Point source may need lens eqn solver kwargs
-        # Need to fix how fixed_magnification_list is handled
-		lens_equation_params = {'search_window':kwargs_params['kwargs_lens'][0]['theta_E']*6,'min_distance': kwargs_params['kwargs_lens'][0]['theta_E']*6/200}
-		if 'lens_equation_solver_parameters' in sample.keys():
-			lens_equation_params = sample['lens_equation_solver_parameters']
-		# print('kwargs_model: ', kwargs_model)
-		# print('kwargs_params: ', kwargs_params)
-		# print('inputs to PointSource:')
-		# print("point_source_type_list,\nlens_model=None,\nfixed_magnification_list=None\n",
-		# "additional_images_list=None,\nflux_from_point_source_list=None,\nmagnification_limit=None\n",
-		# "save_cache=False,\nkwargs_lens_eqn_solver=None,\nindex_lens_model_list=None,\npoint_source_frame_list=None")
-		# print('--------------')
-		# print("point_source_type_list: kwargs_model['point_source_model_list']: ", kwargs_model['point_source_model_list'])
-		# print("lens_model: ", lens_model)
-		# print("save_cache: ", True)
-		# print("kwargs_lens_eqn_solver: ", lens_equation_params)
-		# print("fixed_magnification_list: ", [True])
-		point_source_model = PointSource(
-			kwargs_model['point_source_model_list'],lens_model=lens_model,
-			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params,
-            fixed_magnification_list=[True])
+			# Put it together into an image model
+			image_model = ImageModel(data_api.data_class,psf_model,
+				lens_model,source_light_model,lens_light_model,
+				point_source_model,kwargs_numerics=self.kwargs_numerics)
 
-		# Put it together into an image model
-		image_model = ImageModel(data_api.data_class,psf_model,
-			lens_model,source_light_model,lens_light_model,
-			point_source_model,kwargs_numerics=self.kwargs_numerics)
+			# Generate our image
+			image = image_model.image(kwargs_params['kwargs_lens'],
+				kwargs_params['kwargs_source'],
+				kwargs_params['kwargs_lens_light'],
+				kwargs_params['kwargs_ps'])
 
-		# Generate our image
-		# self.subtract_lens = True if we want to subtract lens; False if we want to keep lens
-		image = image_model.image(kwargs_params['kwargs_lens'],
-			kwargs_params['kwargs_source'],
-			kwargs_params['kwargs_lens_light'],
-			kwargs_params['kwargs_ps'],
-			source_add = True,
-			lens_light_add = not self.subtract_lens,
-        	point_source_add= not self.subtract_source)
-		if self.subtract_lens or self.subtract_source:
-			image_with_all_light = image_model.image(kwargs_params['kwargs_lens'],
+			# Point source may need lens eqn solver kwargs
+			# Need to fix how fixed_magnification_list is handled
+			lens_equation_params = {'search_window':kwargs_params['kwargs_lens'][0]['theta_E']*6,'min_distance': kwargs_params['kwargs_lens'][0]['theta_E']*6/200}
+			if 'lens_equation_solver_parameters' in sample.keys():
+				lens_equation_params = sample['lens_equation_solver_parameters']
+			# print('kwargs_model: ', kwargs_model)
+			# print('kwargs_params: ', kwargs_params)
+			# print('inputs to PointSource:')
+			# print("point_source_type_list,\nlens_model=None,\nfixed_magnification_list=None\n",
+			# "additional_images_list=None,\nflux_from_point_source_list=None,\nmagnification_limit=None\n",
+			# "save_cache=False,\nkwargs_lens_eqn_solver=None,\nindex_lens_model_list=None,\npoint_source_frame_list=None")
+			# print('--------------')
+			# print("point_source_type_list: kwargs_model['point_source_model_list']: ", kwargs_model['point_source_model_list'])
+			# print("lens_model: ", lens_model)
+			# print("save_cache: ", True)
+			# print("kwargs_lens_eqn_solver: ", lens_equation_params)
+			# print("fixed_magnification_list: ", [True])
+			point_source_model = PointSource(
+				kwargs_model['point_source_model_list'],lens_model=lens_model,
+				save_cache=True,kwargs_lens_eqn_solver=lens_equation_params,
+				fixed_magnification_list=[True])
+			# Check for the magnification cut and apply it.
+			if self.mag_cut is not None:
+				# Evaluate the light that would have been in the image using
+				# the image model
+				lens_light_total = np.sum(image_model.lens_surface_brightness(
+					kwargs_params['kwargs_lens_light']))
+				source_light_total = np.sum(source_light_model.total_flux(
+					kwargs_params['kwargs_source']))
+
+				mag = np.sum(image)-lens_light_total
+				mag /= source_light_total
+				if mag < self.mag_cut:
+					raise MagnificationError(self.mag_cut)
+
+			# Generate our image
+			# self.subtract_lens = True if we want to subtract lens; False if we want to keep lens
+			image = image_model.image(kwargs_params['kwargs_lens'],
 				kwargs_params['kwargs_source'],
 				kwargs_params['kwargs_lens_light'],
 				kwargs_params['kwargs_ps'],
 				source_add = True,
-				lens_light_add = True,
-				point_source_add = True)
+				lens_light_add = not self.subtract_lens,
+				point_source_add= not self.subtract_source)
+			if self.subtract_lens or self.subtract_source:
+				image_with_all_light = image_model.image(kwargs_params['kwargs_lens'],
+					kwargs_params['kwargs_source'],
+					kwargs_params['kwargs_lens_light'],
+					kwargs_params['kwargs_ps'],
+					source_add = True,
+					lens_light_add = True,
+					point_source_add = True)
 
-		# Check for the magnification cut and apply it.
-        # TODO: these assumptions break down w/ a point source in the model
-		if self.mag_cut is not None:
-			# Evaluate the light that would have been in the image using
-			# the image model
-			lens_light_total = np.sum(image_model.lens_surface_brightness(
-				kwargs_params['kwargs_lens_light']))
-			source_light_total = np.sum(source_light_model.total_flux(
-				kwargs_params['kwargs_source']))
+			# Check for the magnification cut and apply it.
+			# TODO: these assumptions break down w/ a point source in the model
+			if self.mag_cut is not None:
+				# Evaluate the light that would have been in the image using
+				# the image model
+				lens_light_total = np.sum(image_model.lens_surface_brightness(
+					kwargs_params['kwargs_lens_light']))
+				source_light_total = np.sum(source_light_model.total_flux(
+					kwargs_params['kwargs_source']))
 
-			mag = np.sum(image)-lens_light_total
-			mag /= source_light_total
-			if mag < self.mag_cut:
-				raise FailedCriteriaError()
+				mag = np.sum(image)-lens_light_total
+				mag /= source_light_total
+				if mag < self.mag_cut:
+					raise FailedCriteriaError()
 
-		# If noise is specified, add it.
-		# image contains all light
-		if add_noise and not (self.subtract_lens or self.subtract_source):
-			noise = single_band.noise_for_model(image)
-		elif add_noise and (self.subtract_lens or self.subtract_source):
-			noise = single_band.noise_for_model(image_with_all_light)
-		elif not add_noise:
-			noise = 0        
-		if self.reduce_noise_by:
-			noise = noise/self.reduce_noise_by
-		image += noise
+			# If noise is specified, add it.
+			# image contains all light
+			if add_noise and not (self.subtract_lens or self.subtract_source):
+				noise = single_band.noise_for_model(image)
+			elif add_noise and (self.subtract_lens or self.subtract_source):
+				noise = single_band.noise_for_model(image_with_all_light)
+			elif not add_noise:
+				noise = 0        
+			if self.reduce_noise_by:
+				noise = noise/self.reduce_noise_by
+			image += noise
+			# Extract the metadata from the sample
+			if self.multiband:
+				metadata = self.get_metadata()[band]
+			else: 
+				metadata = self.get_metadata()
 
-		# Extract the metadata from the sample
-		metadata = self.get_metadata()
-		metadata['psf_fwhm'] = psf_model.fwhm
-		# If a point source was specified, calculate the time delays
-		# and image positions.
-		if self.point_source_class is not None:
-			try:
-				success = self._calculate_ps_metadata(metadata,kwargs_params,
-					point_source_model,lens_model)
-			except FailedCriteriaError as e:
-				raise FailedCriteriaError() from e
+			metadata['psf_fwhm'] = psf_model.fwhm
+			# If a point source was specified, calculate the time delays
+			# and image positions.
+			if self.multiband:
+				for band in self.filter_list:
+					if self.point_source_class_dict[band] is not None:
+						try:
+							success = self._calculate_ps_metadata(metadata,kwargs_params,
+								point_source_model,lens_model)
+						except FailedCriteriaError as e:
+							raise FailedCriteriaError() from e
+			else:
+				if self.point_source_class is not None:
+					try:
+						success = self._calculate_ps_metadata(metadata,kwargs_params,
+						point_source_model,lens_model)
+					except FailedCriteriaError as e:
+						raise FailedCriteriaError() from e
 			
 			# address case w/ 6 PS images
 			if success == -1:
 				return None,None
+			return image, metadata
 
-		return image, metadata
-
+		if self.multiband:
+			image_dict = {};metadata_dict = {}
+			for band in self.filter_list:
+				image_dict[band],metadata_dict[band] = generate_image_and_metadata(
+																	sample_dict[band],
+																	kwargs_model_dict[band],
+																	kwargs_params_dict[band],
+																	single_band_dict[band],
+																	data_api_dict[band],
+																	psf_model_dict[band],
+																	band
+																	)
+			return image_dict,metadata_dict
+		else: 
+			return generate_image_and_metadata(self,sample,kwargs_model,kwargs_params,single_band,data_api,psf_model)
 	def _draw_image_drizzle(self):
 		"""Uses the current config sample to generate a drizzled image and the
 		associated metadata.
@@ -875,28 +1064,42 @@ class ConfigHandler():
 		# Use the appropraite generation function
 		try:
 			if self.do_drizzle:
-				image,metadata = self._draw_image_drizzle()
+				if self.multiband: image_dict,metadata_dict = self._draw_image_drizzle()
+				else: image,metadata = self._draw_image_drizzle()
 			else:
 				# _draw_image_standard has a seperate add_noise parameter so
 				# it can be used by _draw_image_drizzle.
-				image,metadata = self._draw_image_standard(
-					add_noise=self.add_noise)
-		except FailedCriteriaError:
-			# Image critera not met, return None,None.
+				if self.multiband: image_dict,metadata_dict = self._draw_image_standard(add_noise=self.add_noise)
+				else: image,metadata = self._draw_image_standard(add_noise=self.add_noise)
+
+		except MagnificationError:
+			# Magnification cut was not met, return None,None
 			return None, None
 		
 		# Mask out an interior region of the image if requested
 		if hasattr(self.config_module,'mask_radius'):
-			kwargs_detector = self.get_current_sample()['detector_parameters']
-			x_grid, y_grid = util.make_grid(numPix=image.shape[0],
-				deltapix=kwargs_detector['pixel_scale'])
-			r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
-			image[r<=self.config_module.mask_radius] = 0
-
+			if self.multiband:
+				current_sample = self.get_current_sample()
+				kwargs_detector_dict = {}
+				for band in self.filter_list:
+					kwargs_detector_dict[band] = current_sample[band]['detector_parameters']
+					x_grid,y_grid = util.make_grid(numPix=image_dict[band].shape[0],
+													deltapix=kwargs_detector_dict[band]['pixel_scale'])
+					r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
+					image_dict[band][r<=self.config_module.mask_radius] = 0
+			else: 
+				kwargs_detector = self.get_current_sample()['detector_parameters']
+				x_grid, y_grid = util.make_grid(numPix=image.shape[0],
+					deltapix=kwargs_detector['pixel_scale'])
+				r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
+				image[r<=self.config_module.mask_radius] = 0
 		# Save the seed
-		metadata['seed'] = seed
-
-		return image,metadata
+		if self.multiband: 
+			for band in self.filter_list: metadata_dict[band]['seed'] = seed
+			return image_dict,metadata_dict
+		else: 
+			metadata['seed']==seed
+			return image,metadata
 
 	def reseed(self):
 		"""Generates, sets, and returns a new random seed.
