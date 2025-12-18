@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 # Define the components we need the sampler to consider.
 lensing_components = ['subhalo','los','main_deflector','source','lens_light',
-	'point_source','lens_equation_solver','cosmology','psf','detector','drizzle',
-	'pixel_grid']
+					  'lens_equation_solver','cosmology','psf','detector',
+					  'pixel_grid']
 
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.
@@ -75,6 +75,8 @@ class Sampler():
 			# If it's a univariate function just call it.
 			elif callable(draw_dict[key]):
 				param_dict[key] = draw_dict[key]()
+			elif isinstance(draw_dict[key], (list, np.ndarray)):
+				param_dict[key] = np.random.choice(draw_dict[key])
 			# If it's a fixed value just populate it.
 			else:
 				param_dict[key] = draw_dict[key]
@@ -200,6 +202,8 @@ class Sampler():
 				except:
 					# if it doesn't exist, then the key must be PSF / cosmology / detector
 					param_dict[key] = draw_dict[key]
+			elif isinstance(draw_dict[key], (list, np.ndarray)):
+				param_dict[key] = np.random.choice(draw_dict[key])
 			else:
 				param_dict[key] = draw_dict[key]
 

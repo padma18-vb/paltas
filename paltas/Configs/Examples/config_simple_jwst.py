@@ -18,6 +18,7 @@ kwargs_numerics = {'supersampling_factor':1}
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
+catalog=False
 
 # Define some general image kwargs for the dataset
 
@@ -28,22 +29,22 @@ config_dict = {
 	'main_deflector':{
 		'class': PEMDShear,
 		'parameters':{
-			'z_lens': None,
+			'z_lens': truncnorm(-0.5, 0.5, loc=0.8,scale=1).rvs,
 			'gamma': norm(loc=2.0,scale=0.2).rvs,
 			'theta_E': truncnorm(-0.5, np.inf, loc=0.8,scale=1).rvs,
 			'e1':norm(loc=0,scale=0.2).rvs,
 			'e2':norm(loc=0,scale=0.2).rvs,
 			'center_x': None,
 			'center_y': None,
-			'gamma1': None,
-			'gamma2': None,
+			'gamma1': norm(loc=0,scale=0.1).rvs,
+			'gamma2': norm(loc=0,scale=0.1).rvs,
 			'ra_0':0.0, 'dec_0':0.0
 		}
 	},
 	'lens_light':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':None,
+			'z_source':1.7,
 			'mag_app':norm(loc=20.5, scale=2).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
@@ -57,17 +58,18 @@ config_dict = {
 	'source':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':None,
+			'z_source':1.7,
 			'mag_app':norm(loc=24, scale = 2).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs, # maybe this should be smaller
 			'n_sersic':norm(loc=4, scale=0.001).rvs,
 			'e1':norm(loc=0, scale=0.1).rvs,
 			'e2':norm(loc=0, scale=0.1).rvs,
-			'center_x':None,
-			'center_y':None
-		}
-	},
+			'center_x':norm(loc=0.0,scale=0.4).rvs,
+			'center_y':norm(loc=0.0,scale=0.4).rvs,
+            'gamma1': norm(loc=0, scale=0.1).rvs,
+            'gamma2': norm(loc=0, scale=0.1).rvs}
+    },
     # 'point_source':{
 	# 	'class': SinglePointSource,
 	# 	'parameters':{
@@ -110,15 +112,10 @@ config_dict = {
 			('main_deflector:e1,lens_light:e1'):dist.DuplicateScatter(
                 dist=norm(loc=0,scale=0.2).rvs,scatter=0.12),
             ('main_deflector:e2,lens_light:e2'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.2).rvs,scatter=0.12),
-            ('source:center_x,source:center_y,point_source:x_point_source,'+
-                'point_source:y_point_source'):dist.DuplicateXY(
-                x_dist=norm(loc=0.0,scale=0.4).rvs,
-                y_dist=norm(loc=0.0,scale=0.4).rvs),
-			('main_deflector:z_lens,lens_light:z_source,source:z_source,'+ 
-				'point_source:z_point_source'): dist.RedshiftsPointSource(
-				z_lens_min=0,z_lens_mean=0.5,z_lens_std=0.6,
-				z_source_min=0,z_source_mean=2,z_source_std=0.6)
+                dist=norm(loc=0,scale=0.2).rvs,scatter=0.12)
+			# ('main_deflector:z_lens,lens_light:z_source,source:z_source'): dist.RedshiftsPointSource(
+			# 	z_lens_min=0,z_lens_mean=0.5,z_lens_std=0.6,
+			# 	z_source_min=0,z_source_mean=2,z_source_std=0.6)
 		}
 	}
 }

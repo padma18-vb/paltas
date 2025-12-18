@@ -41,6 +41,12 @@ EXCLUDE_FROM_METADATA = (
 	('source_parameters', 'cosmos_folder'),
 )
 
+class MagnificationError(Exception):
+	def __init__(self,mag_cut):
+		# Pass a useful message to base class constructor
+		message = 'Magnification cut of %.2f not met. '%(mag_cut)
+		message += 'If this is inteneded (i.e. in a loop) use try/except.'
+		super().__init__(message)
 	
 class FailedCriteriaError(Exception):
 	"""
@@ -84,7 +90,7 @@ class ConfigHandler():
 		self.catalog = self.config_module.catalog
 		self.index = index
 		# Set up our sampler and draw a sample for initialization
-		self.sampler = Sampler()
+		self.sampler = Sampler(self.config_module)
 		try:
 			self.multiband = self.config_module.multiband
 			self.filter_list = self.config_module.filter_list
@@ -708,6 +714,7 @@ class ConfigHandler():
 			data_api_dict = {filter_i:DataAPI(numpix=self.numpix,**kwargs_detector_dict[filter_i]) for filter_i in self.filter_list}
 			single_band_dict = {filter_i:SingleBand(**kwargs_detector_dict[filter_i]) for filter_i in self.filter_list}
 		else: 
+			print('not multiband')
 			sample = self.get_current_sample()			
 			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
 				new_sample=False)
@@ -743,6 +750,7 @@ class ConfigHandler():
 		single_band = SingleBand(**kwargs_detector)
 		def generate_image_and_metadata(sample,kwargs_model,kwargs_params,single_band,data_api,psf_model,band=None):
 			# Pull the cosmology and source redshift
+			print(sample)
 			cosmo = get_cosmology(sample['cosmology_parameters'])
 			# Build our lens and source models.
 			lens_model = LensModel(kwargs_model['lens_model_list'],
@@ -878,8 +886,9 @@ class ConfigHandler():
 						raise FailedCriteriaError() from e
 			
 			# address case w/ 6 PS images
-			if success == -1:
-				return None,None
+			if self.point_source_class is not None:
+				if success == -1:
+					return None,None
 			return image, metadata
 
 		if self.multiband:
@@ -896,7 +905,7 @@ class ConfigHandler():
 																	)
 			return image_dict,metadata_dict
 		else: 
-			return generate_image_and_metadata(self,sample,kwargs_model,kwargs_params,single_band,data_api,psf_model)
+			return generate_image_and_metadata(sample,kwargs_model,kwargs_params,single_band,data_api,psf_model)
 	def _draw_image_drizzle(self):
 		"""Uses the current config sample to generate a drizzled image and the
 		associated metadata.
@@ -1098,7 +1107,7 @@ class ConfigHandler():
 			for band in self.filter_list: metadata_dict[band]['seed'] = seed
 			return image_dict,metadata_dict
 		else: 
-			metadata['seed']==seed
+			metadata['seed']=seed
 			return image,metadata
 
 	def reseed(self):
