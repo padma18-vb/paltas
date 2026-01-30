@@ -42,7 +42,7 @@ config_dict = {
 		'class': SingleSersicSource,
 		'parameters':{
 			'z_source':truncnorm(-5,np.inf,loc=2.,scale=0.4).rvs,
-			'magnitude':uniform(loc=20,scale=5).rvs,
+			'mag_app':uniform(loc=20,scale=5).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
 			'n_sersic':truncnorm(-6.,np.inf,loc=3.,scale=0.5).rvs,

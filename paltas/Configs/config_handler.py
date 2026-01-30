@@ -110,9 +110,14 @@ class ConfigHandler():
 				for filter_dependent_property in self.filter_dependent_properties:
 					property_type = filter_dependent_property.split('_parameters_')[0]
 					property_key = filter_dependent_property.split('_parameters_')[-1]
+					# print('band: ', band, 'property_type: ', property_type, 'property_key: ', property_key)
+					# print(self.multiband_config_dict.keys())
+					# print(self.multiband_config_dict[band].keys())
+					# print(self.multiband_config_dict[band][property_type].keys())
+					# print(self.multiband_config_dict[band][property_type]['parameters'].keys())
 					self.multiband_config_dict[band][property_type]['parameters'][property_key] = self.multiband_config_dict[band][property_type]['parameters'][property_key][band]
 		if self.multiband:
-			self.sampler_dict = {band:Sampler(self.multiband_config_dict[band], configuration_dictionary=self.config_dict) for band in self.filter_list}
+			self.sampler_dict = {band:Sampler(self.multiband_config_dict[band]) for band in self.filter_list}
 		else: 
 			self.sampler = Sampler(self.config_dict)
 		self.sample = None
@@ -179,6 +184,11 @@ class ConfigHandler():
 			self.reduce_noise_by = self.config_module.reduce_noise_by
 		else:
 			self.reduce_noise_by = False
+
+		if hasattr(self.config_module, 'include_rejected'):
+			self.include_rejected = self.config_module.include_rejected
+		else:
+			self.include_rejected = False
 
 		if self.multiband:
 			# Set up the paltas objects we'll use
@@ -615,7 +625,6 @@ class ConfigHandler():
 			raise FailedCriteriaError()
 
 		if self.doubles_quads_only and num_images != 2 and num_images != 4:
-			print('true!!')
 			raise FailedCriteriaError()
 
 		# throw error if not quad & requested quads only
@@ -730,24 +739,24 @@ class ConfigHandler():
 			data_api = DataAPI(numpix=self.numpix,**kwargs_detector)
 			single_band = SingleBand(**kwargs_detector)
 
-		# Get the psf, detector, and pixel grid parameters from the sample
-		kwargs_psf = sample['psf_parameters']
-		kwargs_detector = sample['detector_parameters']
-		kwargs_pixel_grid = None
-		if 'pixel_grid_parameters' in sample.keys():
-			kwargs_pixel_grid = sample['pixel_grid_parameters']
+		# # Get the psf, detector, and pixel grid parameters from the sample
+		# kwargs_psf = sample['psf_parameters']
+		# kwargs_detector = sample['detector_parameters']
+			kwargs_pixel_grid = None
+			if 'pixel_grid_parameters' in sample.keys():
+				kwargs_pixel_grid = sample['pixel_grid_parameters']
 
-		# Build the psf model
-		if apply_psf:
-			psf_model = PSF(**kwargs_psf)
-		else:
-			psf_model = PSF(psf_type='NONE')
+		# # Build the psf model
+		# if apply_psf:
+		# 	psf_model = PSF(**kwargs_psf)
+		# else:
+		# 	psf_model = PSF(psf_type='NONE')
 		
 		
 		# Build the data and noise models we'll use.
-		data_api = DataAPI(numpix=self.numpix,
-			kwargs_pixel_grid=kwargs_pixel_grid,**kwargs_detector)
-		single_band = SingleBand(**kwargs_detector)
+			data_api = DataAPI(numpix=self.numpix,
+				kwargs_pixel_grid=kwargs_pixel_grid,**kwargs_detector)
+			single_band = SingleBand(**kwargs_detector)
 		def generate_image_and_metadata(sample,kwargs_model,kwargs_params,single_band,data_api,psf_model,band=None):
 			# Pull the cosmology and source redshift
 			print(sample)
@@ -877,7 +886,9 @@ class ConfigHandler():
 								point_source_model,lens_model)
 						except FailedCriteriaError as e:
 							raise FailedCriteriaError() from e
+						print('multiband success: ', success)
 			else:
+				print('hello')
 				if self.point_source_class is not None:
 					try:
 						success = self._calculate_ps_metadata(metadata,kwargs_params,
@@ -886,9 +897,9 @@ class ConfigHandler():
 						raise FailedCriteriaError() from e
 			
 			# address case w/ 6 PS images
-			if self.point_source_class is not None:
-				if success == -1:
-					return None,None
+			# if self.point_source_class is not None:
+			# 	if success == -1:
+			# 		return None,None
 			return image, metadata
 
 		if self.multiband:

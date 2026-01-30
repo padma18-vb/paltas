@@ -17,6 +17,19 @@ kwargs_numerics = {'supersampling_factor':1}
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
+multiband = True
+filter_list = ['F090W', 'F115W', 'F150W', 'F200W', 'F356W','F444W']
+filter_dependent_properties = ['lens_light_parameters_mag_app',
+                               'lens_light_parameters_R_sersic', 
+                               'lens_light_parameters_output_ab_zeropoint', 
+                               'source_parameters_R_sersic',
+                               'source_parameters_mag_app',
+                               'source_parameters_output_ab_zeropoint', 
+                               'psf_parameters_fwhm', 
+                               'detector_parameters_pixel_scale',
+                               'detector_parameters_magnitude_zero_point',
+                               'detector_parameters_sky_brightness']
+
 catalog=False
 ### add in all jaguar broadband -- make sure all the jades medium bands are included
 ### initially test on cosmos filters 
@@ -38,7 +51,7 @@ config_dict = {
 	'main_deflector':{
 		'class': PEMDShear,
 		'parameters':{
-			'z_lens': truncnorm(-0.5, 0.5, loc=0.8,scale=1).rvs,
+			'z_lens': None,
 			'gamma': norm(loc=2.0,scale=0.2).rvs,
 			'theta_E': truncnorm(-0.5, np.inf, loc=0.8,scale=1).rvs,
 			'e1':norm(loc=0,scale=0.2).rvs,
@@ -53,13 +66,31 @@ config_dict = {
 	'lens_light':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':1.7,
-			'mag_app':norm(loc=20.5, scale=2).rvs,
-			'output_ab_zeropoint':JWST_FILTERS[chosen_filter]['zp'],
-			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
+			'z_source':None,
+			'mag_app':{"F090W":norm(loc=21, scale = 2).rvs,
+              "F115W":norm(loc=21, scale = 2).rvs, 
+              "F150W":norm(loc=21, scale = 2).rvs,
+              "F200W":norm(loc=21, scale = 2).rvs,
+              "F356W":norm(loc=21, scale = 2).rvs, 
+              "F444W":norm(loc=21, scale=2).rvs},
+			'output_ab_zeropoint':{'F090W': JWST_FILTERS['F090W']['zp'],
+                          "F115W":JWST_FILTERS['F115W']['zp'], 
+						"F150W":JWST_FILTERS['F150W']['zp'],
+						"F200W":JWST_FILTERS['F200W']['zp'],
+						"F356W":JWST_FILTERS['F356W']['zp'], 
+						"F444W":JWST_FILTERS['F444W']['zp']},
+            # {'g':truncnorm(-2,2,loc=0.35,scale=0.05).rvs,'r':truncnorm(-2,2,loc=0.35,scale=0.05).rvs},
+			'R_sersic':{"F090W":truncnorm(-0.5, np.inf, loc=0.5,scale=1).rvs,
+               "F115W":truncnorm(-0.5, np.inf, loc=0.55,scale=1).rvs,
+               "F150W":truncnorm(-0.5, np.inf, loc=0.6,scale=1).rvs,
+               "F200W":truncnorm(-0.5, np.inf, loc=0.65,scale=1).rvs,
+               "F356W":truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
+               "F444W":truncnorm(-0.5, np.inf, loc=0.75,scale=1).rvs},
+            # 'R_sersic': truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
 			'n_sersic':norm(loc=4, scale=0.005).rvs,
-			'e1':None,
-			'e2':None,
+			'e1,e2':dist.EllipticitiesTranslation(
+				q_dist=truncnorm(-np.inf,1.,loc=0.85,scale=0.15).rvs,
+				phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None
 			}
@@ -67,10 +98,25 @@ config_dict = {
 	'source':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':1.7,
-			'mag_app':norm(loc=24, scale = 2).rvs,
-			'output_ab_zeropoint':JWST_FILTERS[chosen_filter]['zp'],
-			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs, # maybe this should be smaller
+			'z_source':None,
+			'mag_app':{"F090W":norm(loc=21, scale = 2).rvs, 
+              "F115W":norm(loc=22, scale=2).rvs,
+              "F150W":norm(loc=21, scale = 2).rvs, 
+              "F200W":norm(loc=22, scale=2).rvs,
+              "F356W":norm(loc=21, scale = 2).rvs, 
+              "F444W":norm(loc=21, scale=2).rvs},
+			'output_ab_zeropoint':{'F090W': JWST_FILTERS['F090W']['zp'],
+                          "F115W":JWST_FILTERS['F115W']['zp'], 
+						"F150W":JWST_FILTERS['F150W']['zp'],
+						"F200W":JWST_FILTERS['F200W']['zp'],
+						"F356W":JWST_FILTERS['F356W']['zp'], 
+						"F444W":JWST_FILTERS['F444W']['zp']},
+			'R_sersic':{"F090W":truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
+               "F115W":truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
+               "F150W":truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
+               "F200W":truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
+               "F356W":truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
+               "F444W":truncnorm(-2,2,loc=0.35,scale=0.05).rvs,}, # maybe this should be smaller
 			'n_sersic':norm(loc=4, scale=0.001).rvs,
 			'e1':norm(loc=0, scale=0.1).rvs,
 			'e2':norm(loc=0, scale=0.1).rvs,
@@ -101,14 +147,36 @@ config_dict = {
 	'psf':{
 		'parameters':{
 			'psf_type':'GAUSSIAN',
-			'fwhm': JWST_FILTERS[chosen_filter]['fwhm']
+			'fwhm': {'F090W': JWST_FILTERS['F090W']['fwhm'],
+                          "F115W":JWST_FILTERS['F115W']['fwhm'], 
+						"F150W":JWST_FILTERS['F150W']['fwhm'],
+						"F200W":JWST_FILTERS['F200W']['fwhm'],
+						"F356W":JWST_FILTERS['F356W']['fwhm'], 
+						"F444W":JWST_FILTERS['F444W']['fwhm']}
 		}
 	},
+    # what should the exposure time be?
+    # check that noise is being added appropriately
 	'detector':{
 		'parameters':{
-			'pixel_scale':JWST_FILTERS[chosen_filter]['pixel_scale'],'ccd_gain':1.0,'read_noise':5.0,
-			'magnitude_zero_point':JWST_FILTERS[chosen_filter]['zp'],
-			'exposure_time': 3600 * 2,'sky_brightness':JWST_FILTERS[chosen_filter]['sky'],
+			'pixel_scale':{'F090W': JWST_FILTERS['F090W']['pixel_scale'],
+                          "F115W":JWST_FILTERS['F115W']['pixel_scale'], 
+						"F150W":JWST_FILTERS['F150W']['pixel_scale'],
+						"F200W":JWST_FILTERS['F200W']['pixel_scale'],
+						"F356W":JWST_FILTERS['F356W']['pixel_scale'], 
+						"F444W":JWST_FILTERS['F444W']['pixel_scale']},'ccd_gain':1.0,'read_noise':5.0,
+			'magnitude_zero_point':{'F090W': JWST_FILTERS['F090W']['zp'],
+                          "F115W":JWST_FILTERS['F115W']['zp'], 
+						"F150W":JWST_FILTERS['F150W']['zp'],
+						"F200W":JWST_FILTERS['F200W']['zp'],
+						"F356W":JWST_FILTERS['F356W']['zp'], 
+						"F444W":JWST_FILTERS['F444W']['zp']},
+			'exposure_time': 3600 * 2,'sky_brightness':{'F090W': JWST_FILTERS['F090W']['sky'],
+                          "F115W":JWST_FILTERS['F115W']['sky'], 
+						"F150W":JWST_FILTERS['F150W']['sky'],
+						"F200W":JWST_FILTERS['F200W']['sky'],
+						"F356W":JWST_FILTERS['F356W']['sky'], 
+						"F444W":JWST_FILTERS['F444W']['sky']},
 			'num_exposures':4,'background_noise':None
 		}
 	},
@@ -118,13 +186,13 @@ config_dict = {
                 dist=norm(loc=0,scale=0.06).rvs,scatter=0.001),
             ('main_deflector:center_y,lens_light:center_y'):dist.DuplicateScatter(
                 dist=norm(loc=0,scale=0.06).rvs,scatter=0.001),
-			('main_deflector:e1,lens_light:e1'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.2).rvs,scatter=0.12),
-            ('main_deflector:e2,lens_light:e2'):dist.DuplicateScatter(
-                dist=norm(loc=0,scale=0.2).rvs,scatter=0.12)
-			# ('main_deflector:z_lens,lens_light:z_source,source:z_source'): dist.RedshiftsPointSource(
-			# 	z_lens_min=0,z_lens_mean=0.5,z_lens_std=0.6,
-			# 	z_source_min=0,z_source_mean=2,z_source_std=0.6)
+			# ('main_deflector:e1,lens_light:e1'):dist.DuplicateScatter(
+            #     dist=norm(loc=0,scale=0.2).rvs,scatter=0.12),
+            # ('main_deflector:e2,lens_light:e2'):dist.DuplicateScatter(
+            #     dist=norm(loc=0,scale=0.2).rvs,scatter=0.12)
+			('main_deflector:z_lens,lens_light:z_source,source:z_source'): dist.RedshiftsLensLight(
+				z_lens_min=0,z_lens_mean=0.5,z_lens_std=0.6,
+				z_source_min=0,z_source_mean=2,z_source_std=0.6)
 		}
 	}
 }
