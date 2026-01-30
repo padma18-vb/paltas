@@ -14,16 +14,25 @@ from paltas.PointSource.single_point_source import SinglePointSource
 from lenstronomy.Util import kernel_util
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':1}
-
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
 catalog=False
+### add in all jaguar broadband -- make sure all the jades medium bands are included
+### initially test on cosmos filters 
+JWST_FILTERS = {
+    "F090W": {"pixel_scale": 0.031, "fwhm": 0.032, "zp": 28.02, "sky": 26.0},
+    "F115W": {"pixel_scale": 0.031, "fwhm": 0.038, "zp": 28.04, "sky": 25.8},
+    "F150W": {"pixel_scale": 0.031, "fwhm": 0.048, "zp": 28.05, "sky": 25.5},
+    "F200W": {"pixel_scale": 0.031, "fwhm": 0.063, "zp": 27.99, "sky": 25.0},
+    "F356W": {"pixel_scale": 0.063, "fwhm": 0.11,  "zp": 27.78, "sky": 23.5},
+    "F444W": {"pixel_scale": 0.063, "fwhm": 0.15,  "zp": 27.70, "sky": 23.0},
+}
+chosen_filter = 'F356W'
 
 # Define some general image kwargs for the dataset
 
 # Define arguments that will be used multiple times
-output_ab_zeropoint = 28.17
 
 config_dict = {
 	'main_deflector':{
@@ -46,7 +55,7 @@ config_dict = {
 		'parameters':{
 			'z_source':1.7,
 			'mag_app':norm(loc=20.5, scale=2).rvs,
-			'output_ab_zeropoint':output_ab_zeropoint,
+			'output_ab_zeropoint':JWST_FILTERS[chosen_filter]['zp'],
 			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs,
 			'n_sersic':norm(loc=4, scale=0.005).rvs,
 			'e1':None,
@@ -60,7 +69,7 @@ config_dict = {
 		'parameters':{
 			'z_source':1.7,
 			'mag_app':norm(loc=24, scale = 2).rvs,
-			'output_ab_zeropoint':output_ab_zeropoint,
+			'output_ab_zeropoint':JWST_FILTERS[chosen_filter]['zp'],
 			'R_sersic':truncnorm(-0.5, np.inf, loc=0.7,scale=1).rvs, # maybe this should be smaller
 			'n_sersic':norm(loc=4, scale=0.001).rvs,
 			'e1':norm(loc=0, scale=0.1).rvs,
@@ -92,14 +101,14 @@ config_dict = {
 	'psf':{
 		'parameters':{
 			'psf_type':'GAUSSIAN',
-			'fwhm': 0.03
+			'fwhm': JWST_FILTERS[chosen_filter]['fwhm']
 		}
 	},
 	'detector':{
 		'parameters':{
-			'pixel_scale':0.040,'ccd_gain':1.58,'read_noise':3.0,
-			'magnitude_zero_point':output_ab_zeropoint,
-			'exposure_time':1380,'sky_brightness':21.83,
+			'pixel_scale':JWST_FILTERS[chosen_filter]['pixel_scale'],'ccd_gain':1.0,'read_noise':5.0,
+			'magnitude_zero_point':JWST_FILTERS[chosen_filter]['zp'],
+			'exposure_time': 3600 * 2,'sky_brightness':JWST_FILTERS[chosen_filter]['sky'],
 			'num_exposures':4,'background_noise':None
 		}
 	},
